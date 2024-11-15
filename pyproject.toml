@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "connect4"
+version = "0.1.0"
+description = ""
+authors = ["Mario Reyes Ojeda <m.reyeso@uniandes.edu.co>", "Manuela Hernandez Otalora <ma.hernandezo1@uniandes.edu.co>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^2.1.3"
+pygame = "^2.6.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

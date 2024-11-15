@@ -1,0 +1,8 @@
+*.DS_Store
+.idea/*
+.env/
+data/imgs/
+.python-version
+.tool-versions
+.ipynb_checkpoints/
+/*/__pycache__/
