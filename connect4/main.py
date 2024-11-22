@@ -12,5 +12,4 @@ if __name__ == "__main__":
     board_ui = BoardUI()
     environment = Connect4Environment()
 
-    while True:
-        board_ui.show_board(environment, screen)
+    board_ui.show_board(environment, screen)
