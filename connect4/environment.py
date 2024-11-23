@@ -49,8 +49,8 @@ class Connect4Environment:
     def state(self, value: tuple[int, int]):
         self._state = value
 
-    def state_value(self, state: tuple[int, int]):
-        return self._board[state[0]][state[1]]
+    def state_value(self, state: tuple[int, int]) -> int:
+        return int(self._board[state[0]][state[1]])
 
     def get_possible_positions(
         self,
@@ -71,13 +71,16 @@ class Connect4Environment:
             if len(temp_filled_cols) != N_COLS:
                 current_row = row
                 break
+            else:
+                temp_filled_cols = []
 
         for col in temp_filled_cols:
             available_positions.append((current_row + 1, col))
 
         return available_positions, filled_positions
 
-    def get_possible_actions(self, piece: int) -> list[str]:
+    def get_possible_actions(self, state: tuple[int, int]) -> list[str]:
+        piece = self.state_value(state)
         available_positions, filled_positions = self.get_possible_positions()
 
         # adversary filled positions
@@ -94,15 +97,16 @@ class Connect4Environment:
             adv_piece = next(iter(con_filled_positions.values()))
             assert adv_piece != piece
 
-            if self.winning_move(adv_piece):
+            if self.is_winning_move(adv_piece):
                 actions = [ACTION_BLOCK]
             else:
                 actions = [ACTION_DROP]
 
         return actions
 
-    def is_terminal(self, player_1: int, player_2: int):
-        return self.winning_move(player_1) or self.winning_move(player_2)
+    def is_terminal(self, state: tuple[int, int]) -> bool:
+        piece = self.state_value(state)
+        return self.is_winning_move(piece)
 
     def is_valid_location(self, col):
         return self._board[N_ROWS - 1][col] == 0
@@ -112,11 +116,14 @@ class Connect4Environment:
             if self._board[r][col] == 0:
                 return r
 
-    def do_action(self, action: str, piece: int) -> tuple[tuple[int, int], int]:
-        available_positions, filled_positions = self.get_possible_positions()
-        adv_piece = next(iter(filled_positions.values()))
+    def do_action(self, action: str) -> tuple[tuple[int, int], int]:
+        state = self.get_current_state()
+        piece = self.state_value(state)
 
-        is_final = self.is_terminal(piece, adv_piece)
+        available_positions, filled_positions = self.get_possible_positions()
+        adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
+
+        is_final = self.is_terminal(state)
 
         if action == ACTION_DROP:
             row, col = (
@@ -136,20 +143,9 @@ class Connect4Environment:
         return reached_stated, get_reward(action)
 
     def drop_piece(self, row, col, piece):
-        # todo: replace later with drop_piece_reward
         self._board[row][col] = piece
 
-    def drop_piece_reward(self, row, col, piece) -> tuple[tuple[int, int], int]:
-        reached_stated = (row, col)
-
-        self._board[row][col] = piece
-        self.state = reached_stated
-
-        # return reached_stated, self.get_reward(reached_stated, piece)
-        # return reached_stated, self.get_reward(reached_stated, piece)
-        return
-
-    def winning_move(self, piece) -> bool:
+    def is_winning_move(self, piece) -> bool:
         return bool(self.winner_position(piece))
 
     def winner_position(self, piece) -> Optional[tuple[int, int]]:
@@ -198,3 +194,13 @@ class Connect4Environment:
                     return r, c
 
         return None
+
+    def get_current_state(self):
+        return self.state
+
+    def reset(self):
+        self._board = np.zeros((N_ROWS, N_COLS))
+        self.initial_turn = random.randint(0, 1)
+        self._turn = self.initial_turn
+        self._state = None
+        self._finished = False

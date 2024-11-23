@@ -106,7 +106,7 @@ class BoardUI:
                             row = env.get_next_open_row(col)
                             env.drop_piece(row, col, 1)
 
-                            if env.winning_move(1):
+                            if env.is_winning_move(1):
                                 # print("Player 1 wins!!!")
                                 label = MY_FONT.render("Player 1 wins!!!", 1, YELLOW)
                                 screen.blit(label, (40, 10))
@@ -122,7 +122,7 @@ class BoardUI:
                             row = env.get_next_open_row(col)
                             env.drop_piece(row, col, 2)
 
-                            if env.winning_move(2):
+                            if env.is_winning_move(2):
                                 # print("Player 2 wins!!!")
                                 label = MY_FONT.render("Player 2 wins!!!", 1, GREEN)
                                 screen.blit(label, (40, 10))
