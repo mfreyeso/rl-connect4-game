@@ -79,8 +79,7 @@ class Connect4Environment:
 
         return available_positions, filled_positions
 
-    def get_possible_actions(self, state: tuple[int, int]) -> list[str]:
-        piece = self.state_value(state)
+    def get_possible_actions(self, piece: int) -> list[str]:
         available_positions, filled_positions = self.get_possible_positions()
 
         # adversary filled positions
