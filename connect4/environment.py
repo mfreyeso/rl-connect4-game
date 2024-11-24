@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from connect4.constants import (
+from constants import (
     N_ROWS,
     N_COLS,
     ACTION_DROP,
@@ -74,8 +74,9 @@ class Connect4Environment:
             else:
                 temp_filled_cols = []
 
-        for col in temp_filled_cols:
-            available_positions.append((current_row + 1, col))
+        if current_row < N_ROWS -1:
+            for col in temp_filled_cols:
+                available_positions.append((current_row + 1, col))
 
         return available_positions, filled_positions
 
@@ -103,9 +104,8 @@ class Connect4Environment:
 
         return actions
 
-    def is_terminal(self, state: tuple[int, int]) -> bool:
-        piece = self.state_value(state)
-        return self.is_winning_move(piece)
+    def is_terminal(self, piece: int) -> bool:
+        return self.is_winning_move(piece) or (0 not in np.unique(self.board).tolist())
 
     def is_valid_location(self, col):
         return self._board[N_ROWS - 1][col] == 0
@@ -115,14 +115,9 @@ class Connect4Environment:
             if self._board[r][col] == 0:
                 return r
 
-    def do_action(self, action: str) -> tuple[tuple[int, int], int]:
-        state = self.get_current_state()
-        piece = self.state_value(state)
-
+    def do_action(self, action: str, piece: int) -> tuple[tuple[int, int], int]:
         available_positions, filled_positions = self.get_possible_positions()
-        adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
-
-        is_final = self.is_terminal(state)
+        is_final = self.is_terminal(piece)
 
         if action == ACTION_DROP:
             row, col = (
@@ -132,6 +127,7 @@ class Connect4Environment:
             )
             action = ACTION_DROP_WIN
         else:
+            adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
             row, col = self.winner_position(adv_piece)
 
         reached_stated = (row, col)

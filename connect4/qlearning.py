@@ -3,6 +3,8 @@
 import random
 from typing import Optional
 
+import numpy as np
+
 from environment import Connect4Environment
 
 
@@ -55,16 +57,12 @@ class QLearning:
         }
         return max(p_actions, key=p_actions.get) if p_actions else ""
 
-    def step(self, action: str) -> tuple[tuple[int, int], int, bool, str]:
-        next_state, reward = self.env.do_action(action)
-        terminal = self.env.is_terminal(next_state)
-        des = f"{action} - {next_state}  - {reward}"
-
-        return next_state, reward, terminal, des
 
     def run(self, episodes: int) -> dict[tuple[int, str], float]:
         for episode in range(1, episodes + 1):
-            # print('episode', episode)
+            print('episode', episode)
+            print("epsilon", self.epsilon)
+
             self.env.reset()
             player = random.randint(1, 2)
 
@@ -73,7 +71,7 @@ class QLearning:
 
             done = False
             while not done:
-                next_state, reward = self.env.do_action(action)
+                next_state, reward = self.env.do_action(action, player)
 
                 player = 2 if player == 1 else 1
 
@@ -81,21 +79,24 @@ class QLearning:
                 self.update_values(state, action, next_state, reward, player)
 
                 state, action = next_state, next_action
-                done = self.env.is_terminal(next_state)
+                done = self.env.is_terminal(player)
 
             if episode % 100 == 0:
                 if self.epsilon > 0.01:
                     self.epsilon -= self.epsilon * 0.1
 
-        return self.qtable
+            win = self.env.is_winning_move(player)
 
-    # def test_performance(self) -> tuple[dict, dict]:
-    #     actions = {}
-    #     values = {}
-    #     for i in range(self.env.nrows):
-    #         for j in range(self.env.ncols):
-    #             if not self.env.is_terminal((i, j)):
-    #                 action = self.best_action((i, j))
-    #                 actions[(i, j)] = action
-    #                 values[(i, j)] = self.get_value((i, j), action)
-    #     return actions, values
+            if win:
+                print(f"Player {player} Wins!")
+            else:
+                print(f"Draw!")
+
+            # print(np.flipud(self.env.board))
+            # breakpoint()
+
+            # enable above two lines to track final table
+
+
+
+        return self.qtable
