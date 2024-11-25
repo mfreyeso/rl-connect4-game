@@ -74,9 +74,15 @@ class Connect4Environment:
             else:
                 temp_filled_cols = []
 
-        if current_row < N_ROWS -1:
+        if current_row < N_ROWS - 1:
             for col in temp_filled_cols:
-                available_positions.append((current_row + 1, col))
+                for row in range(0, N_ROWS):
+                    if self._board[row][col] != 0:
+                        if (row, col) not in filled_positions:
+                            filled_positions[(row, col)] = self._board[row][col]
+                    else:
+                        available_positions.append((row, col))
+                        break
 
         return available_positions, filled_positions
 
@@ -199,3 +205,16 @@ class Connect4Environment:
         self._turn = self.initial_turn
         self._state = None
         self._finished = False
+
+    def get_next_agent_step(self, qtable) -> tuple[int, int]:
+        available_positions, filed_positions = self.get_possible_positions()
+        p_actions = {
+            pos: value
+            for pos, value in qtable.items()
+            if pos[0] in available_positions and pos not in filed_positions
+        }
+
+        max_item = max(p_actions, key=p_actions.get) if p_actions else None
+        if max_item:
+            # return position, no action
+            return max_item[0]

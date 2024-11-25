@@ -1,15 +1,20 @@
 import math
+import random
 
 import numpy as np
 import pygame
 import sys
 
 from connect4.constants import N_COLS, N_ROWS, SQUARE_SIZE, HEIGHT, WIDTH
+from connect4.environment import Connect4Environment
 
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 YELLOW = (255, 255, 0)
 GREEN = (0, 255, 0)
+
+
+PLAYER_COLORS = {1: YELLOW, 2: GREEN}
 
 RADIUS = int(SQUARE_SIZE / 2 - 5)
 
@@ -69,9 +74,19 @@ class BoardUI:
 
         pygame.display.update()
 
-    def show_board(self, env, screen):
+    def show_board(self, env: Connect4Environment, screen, qtable):
         self.draw_board(env.board, screen)
         turn = env.turn
+
+        human = random.randint(0, 1)
+        machine = int(not human)
+
+        machine_pos = machine + 1
+        human_pos = human + 1
+
+        print(f"Human is Player {human_pos}")
+        print(f"Machine is Player {machine_pos}")
+        print(f"Starts Player {env.turn + 1}")
 
         while not env.finished:
             for event in pygame.event.get():
@@ -80,59 +95,72 @@ class BoardUI:
                     sys.exit()
 
                 if event.type == pygame.MOUSEMOTION:
-                    pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
-                    posx = event.pos[0]
-                    if env.turn == 0:
-                        pygame.draw.circle(
-                            screen, YELLOW, (posx, int(SQUARE_SIZE / 2)), RADIUS
-                        )
-                    else:
-                        pygame.draw.circle(
-                            screen, GREEN, (posx, int(SQUARE_SIZE / 2)), RADIUS
-                        )
+                    if env.turn != machine:
+                        pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
+                        posx = event.pos[0]
+                        if env.turn == 0:
+                            pygame.draw.circle(
+                                screen, YELLOW, (posx, int(SQUARE_SIZE / 2)), RADIUS
+                            )
+                        else:
+                            pygame.draw.circle(
+                                screen, GREEN, (posx, int(SQUARE_SIZE / 2)), RADIUS
+                            )
 
                 pygame.display.update()
 
-                # solicitando la movida al jugador 1
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
-                    # print(event.pos)
-                    if env.turn == 0:
-                        posx = event.pos[0]
-                        col = int(math.floor(posx / SQUARE_SIZE))
-                        # col = int(input("Jugador 1 haz tu movida (0,6):"))
+                if env.turn == machine:
+                    row, col = env.get_next_agent_step(qtable)
+                    print(row, col)
+                    env.drop_piece(row, col, machine_pos)
 
-                        if env.is_valid_location(col):
-                            row = env.get_next_open_row(col)
-                            env.drop_piece(row, col, 1)
+                    if env.is_winning_move(machine_pos):
+                        label = MY_FONT.render(
+                            f"Player {machine_pos} wins!!!",
+                            1,
+                            PLAYER_COLORS[machine_pos],
+                        )
+                        screen.blit(label, (40, 10))
+                        env.finished = True
 
-                            if env.is_winning_move(1):
-                                # print("Player 1 wins!!!")
-                                label = MY_FONT.render("Player 1 wins!!!", 1, YELLOW)
-                                screen.blit(label, (40, 10))
-                                env.finished = True
-
-                    # solicitando la movida al jugador 2
-                    else:
-                        posx = event.pos[0]
-                        col = int(math.floor(posx / SQUARE_SIZE))
-                        # col = int(input("Jugador 2 haz tu movida(0,6):"))
-
-                        if env.is_valid_location(col):
-                            row = env.get_next_open_row(col)
-                            env.drop_piece(row, col, 2)
-
-                            if env.is_winning_move(2):
-                                # print("Player 2 wins!!!")
-                                label = MY_FONT.render("Player 2 wins!!!", 1, GREEN)
-                                screen.blit(label, (40, 10))
-                                env.finished = True
+                    turn += 1  # se incrementa en uno el turno
+                    env.turn = turn % 2  # alternando entre cero y uno
 
                     print(np.flipud(env.board))
                     self.draw_board(env.board, screen)
 
+                    pygame.display.update()
+
+                    if env.finished:
+                        pygame.time.wait(1500)
+
+                    continue
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
+                    posx = event.pos[0]
+                    col = int(math.floor(posx / SQUARE_SIZE))
+
+                    if env.is_valid_location(col):
+                        row = env.get_next_open_row(col)
+                        env.drop_piece(row, col, human_pos)
+
+                        if env.is_winning_move(human_pos):
+                            label = MY_FONT.render(
+                                f"Player {human_pos} wins!!!",
+                                1,
+                                PLAYER_COLORS[human_pos],
+                            )
+                            screen.blit(label, (40, 10))
+                            env.finished = True
+
                     turn += 1  # se incrementa en uno el turno
                     env.turn = turn % 2  # alternando entre cero y uno
+
+                    print(np.flipud(env.board))
+                    self.draw_board(env.board, screen)
+
+                    pygame.display.update()
 
                     if env.finished:
                         pygame.time.wait(1500)

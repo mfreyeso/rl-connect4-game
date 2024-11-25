@@ -36,7 +36,7 @@ class QLearning:
         action: str,
         next_state: tuple[int, int],
         reward: int,
-        piece: int
+        piece: int,
     ) -> None:
         if piece == 1:
             q_sa = self.get_value(state, action)
@@ -57,10 +57,9 @@ class QLearning:
         }
         return max(p_actions, key=p_actions.get) if p_actions else ""
 
-
     def run(self, episodes: int) -> dict[tuple[int, str], float]:
         for episode in range(1, episodes + 1):
-            print('episode', episode)
+            print("episode", episode)
             print("epsilon", self.epsilon)
 
             self.env.reset()
@@ -96,7 +95,5 @@ class QLearning:
             # breakpoint()
 
             # enable above two lines to track final table
-
-
 
         return self.qtable
