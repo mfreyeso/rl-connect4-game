@@ -110,7 +110,10 @@ class BoardUI:
                 pygame.display.update()
 
                 if env.turn == machine:
-                    row, col = env.get_next_agent_step(qtable)
+                    step = env.get_next_agent_step(qtable)
+                    if step is None:
+                        continue
+                    row, col = step
                     print(row, col)
                     env.drop_piece(row, col, machine_pos)
 

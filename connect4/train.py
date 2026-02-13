@@ -1,7 +1,7 @@
 import pickle
 
-from environment import Connect4Environment
-from qlearning import QLearning
+from connect4.environment import Connect4Environment
+from connect4.qlearning import QLearning
 
 
 def save_q_table(table):

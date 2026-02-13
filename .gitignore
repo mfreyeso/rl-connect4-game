@@ -1,6 +1,7 @@
 *.DS_Store
 .idea/*
 .env/
+.venv/
 data/imgs/
 .python-version
 .tool-versions

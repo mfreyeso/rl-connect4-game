@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import numpy as np
 
-from constants import (
+from connect4.constants import (
     N_ROWS,
     N_COLS,
     ACTION_DROP,
@@ -42,7 +42,7 @@ class Connect4Environment:
         self._finished = value
 
     @property
-    def state(self) -> tuple[int, int]:
+    def state(self) -> Optional[tuple[int, int]]:
         return self._state
 
     @state.setter
@@ -126,15 +126,19 @@ class Connect4Environment:
         is_final = self.is_terminal(piece)
 
         if action == ACTION_DROP:
-            row, col = (
+            position = (
                 self.winner_position(piece)
                 if is_final
                 else random.choice(available_positions)
             )
+            assert position is not None, "Expected a valid position"
+            row, col = position
             action = ACTION_DROP_WIN
         else:
             adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
-            row, col = self.winner_position(adv_piece)
+            position = self.winner_position(adv_piece)
+            assert position is not None, "Expected a valid winner position to block"
+            row, col = position
 
         reached_stated = (row, col)
 
@@ -206,7 +210,7 @@ class Connect4Environment:
         self._state = None
         self._finished = False
 
-    def get_next_agent_step(self, qtable) -> tuple[int, int]:
+    def get_next_agent_step(self, qtable: dict) -> Optional[tuple[int, int]]:
         available_positions, filed_positions = self.get_possible_positions()
         p_actions = {
             pos: value
@@ -214,7 +218,9 @@ class Connect4Environment:
             if pos[0] in available_positions and pos not in filed_positions
         }
 
-        max_item = max(p_actions, key=p_actions.get) if p_actions else None
-        if max_item:
-            # return position, no action
-            return max_item[0]
+        if not p_actions:
+            return None
+
+        max_item = max(p_actions, key=lambda k: p_actions[k])
+        # return position, no action
+        return max_item[0]

@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 
-from environment import Connect4Environment
+from connect4.environment import Connect4Environment
 
 
 class QLearning:
@@ -55,7 +55,7 @@ class QLearning:
         p_actions = {
             a: self.get_value(state, a) for a in self.env.get_possible_actions(piece)
         }
-        return max(p_actions, key=p_actions.get) if p_actions else ""
+        return max(p_actions, key=lambda k: p_actions[k]) if p_actions else ""
 
     def run(self, episodes: int) -> dict[tuple[int, str], float]:
         for episode in range(1, episodes + 1):
@@ -70,6 +70,9 @@ class QLearning:
 
             done = False
             while not done:
+                if action is None:
+                    break
+
                 next_state, reward = self.env.do_action(action, player)
 
                 player = 2 if player == 1 else 1
