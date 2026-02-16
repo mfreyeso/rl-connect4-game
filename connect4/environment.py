@@ -129,7 +129,7 @@ class Connect4Environment:
             position = (
                 self.winner_position(piece)
                 if is_final
-                else random.choice(available_positions)
+                else random.choice(self._gravity_valid_positions(available_positions))
             )
             assert position is not None, "Expected a valid position"
             row, col = position
@@ -148,6 +148,12 @@ class Connect4Environment:
         self.state = reached_stated
 
         return reached_stated, get_reward(action)
+
+    def _gravity_valid_positions(
+        self, positions: list[tuple[int, int]]
+    ) -> list[tuple[int, int]]:
+        """Filter positions to only those respecting Connect 4 gravity."""
+        return [(r, c) for r, c in positions if r == 0 or self._board[r - 1][c] != 0]
 
     def drop_piece(self, row, col, piece):
         self._board[row][col] = piece

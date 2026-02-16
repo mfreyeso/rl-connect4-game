@@ -237,25 +237,22 @@ class TestPlayerAttribution:
         val_p1 = ql.qtable[(state, action)]
         assert val_p1 > 0  # should have learned something
 
-    def test_swapped_player_does_not_overwrite(self):
-        """Ensure the acting player's move is recorded — not the next player's."""
+    def test_both_players_update_qtable(self):
+        """Both players should update the Q-table (Bug 3 / P1 fix removed piece==1 guard)."""
         env = Connect4Environment()
-        ql = QLearning(env, epsilon=1.0, gamma=0.9, alpha=0.5)
 
         state = (0, 0)
         action = ACTION_DROP
         next_state = (0, 1)
 
-        # Simulate the fixed training loop order:
-        # 1. Player 1 acts
-        # 2. Save acting_player = 1
-        # 3. Swap to player 2
-        # 4. Call update_values with acting_player=1
-        ql.update_values(state, action, next_state, reward=5, piece=1)
-        assert (state, action) in ql.qtable
-        assert ql.qtable[(state, action)] > 0
+        # Player 1 updates
+        ql1 = QLearning(env, epsilon=1.0, gamma=0.9, alpha=0.5)
+        ql1.update_values(state, action, next_state, reward=5, piece=1)
+        assert (state, action) in ql1.qtable
+        assert ql1.qtable[(state, action)] > 0
 
-        # Verify piece=2 guard still prevents update (existing behavior from Bug 3 / P1)
+        # Player 2 also updates (was blocked before P1 fix)
         ql2 = QLearning(env, epsilon=1.0, gamma=0.9, alpha=0.5)
         ql2.update_values(state, action, next_state, reward=5, piece=2)
-        assert (state, action) not in ql2.qtable
+        assert (state, action) in ql2.qtable
+        assert ql2.qtable[(state, action)] > 0

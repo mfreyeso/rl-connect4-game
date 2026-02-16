@@ -3,8 +3,6 @@
 import random
 from typing import Optional
 
-import numpy as np
-
 from connect4.environment import Connect4Environment
 
 
@@ -38,18 +36,17 @@ class QLearning:
         reward: int,
         piece: int,
     ) -> None:
-        if piece == 1:
-            q_sa = self.get_value(state, action)
-            max_q_next_state = max(
-                [
-                    self.get_value(next_state, ac)
-                    for ac in self.env.get_possible_actions(piece)
-                ]
-            )
-            val_q_sa = ((1 - self.alpha) * q_sa) + self.alpha * (
-                reward + (self.gamma * max_q_next_state)
-            )
-            self.qtable[(state, action)] = val_q_sa
+        q_sa = self.get_value(state, action)
+        max_q_next_state = max(
+            [
+                self.get_value(next_state, ac)
+                for ac in self.env.get_possible_actions(piece)
+            ]
+        )
+        val_q_sa = ((1 - self.alpha) * q_sa) + self.alpha * (
+            reward + (self.gamma * max_q_next_state)
+        )
+        self.qtable[(state, action)] = val_q_sa
 
     def best_action(self, state: tuple[int, int], piece: int) -> str:
         p_actions = {
@@ -93,7 +90,7 @@ class QLearning:
             if win:
                 print(f"Player {player} Wins!")
             else:
-                print(f"Draw!")
+                print("Draw!")
 
             # print(np.flipud(self.env.board))
             # breakpoint()

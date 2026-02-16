@@ -12,3 +12,7 @@ train:
 
 typecheck:
 	uv run ty check .
+
+test:
+	export PYTHONPATH=$(PWD)
+	uv run pytest tests -v
