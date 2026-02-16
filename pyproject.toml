@@ -15,8 +15,13 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=24.10.0",
+    "pre-commit>=4.0.0",
+    "pytest>=9.0.2",
     "ty>=0.0.1a7",
 ]
 
 [tool.ty.rules]
 possibly-unresolved-reference = "warn"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

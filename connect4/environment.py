@@ -96,14 +96,14 @@ class Connect4Environment:
             if piece_i != piece
         }
 
-        if len([con_filled_positions]) < 3:
+        if len(con_filled_positions) < 3:
             # early steps in game, no required block yet
             actions = [ACTION_DROP]
         else:
             adv_piece = next(iter(con_filled_positions.values()))
             assert adv_piece != piece
 
-            if self.is_winning_move(adv_piece):
+            if self.is_threatening_move(adv_piece):
                 actions = [ACTION_BLOCK]
             else:
                 actions = [ACTION_DROP]
@@ -136,8 +136,10 @@ class Connect4Environment:
             action = ACTION_DROP_WIN
         else:
             adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
-            position = self.winner_position(adv_piece)
-            assert position is not None, "Expected a valid winner position to block"
+            position = self.threatening_position(adv_piece)
+            assert position is not None, (
+                "Expected a valid threatening position to block"
+            )
             row, col = position
 
         reached_stated = (row, col)
@@ -199,6 +201,60 @@ class Connect4Environment:
                     return r, c
 
         return None
+
+    def threatening_position(self, piece) -> Optional[tuple[int, int]]:
+        """Checks all 4-cell windows (horizontal, vertical, both diagonals)
+        for exactly 3 pieces of the given type and 1 empty cell. The empty
+        cell must be playable (bottom row or has a piece directly below it).
+
+        Returns the (row, col) of the playable empty cell, or None.
+        """
+
+        def is_gravity_valid(r: int, c: int) -> bool:
+            return r == 0 or self._board[r - 1][c] != 0
+
+        def check_window(cells: list[tuple[int, int]]) -> Optional[tuple[int, int]]:
+            values = [self._board[r][c] for r, c in cells]
+            if values.count(piece) == 3 and values.count(0) == 1:
+                empty_idx = values.index(0)
+                er, ec = cells[empty_idx]
+                if is_gravity_valid(er, ec):
+                    return (er, ec)
+            return None
+
+        # Horizontal windows
+        for c in range(N_COLS - 3):
+            for r in range(N_ROWS):
+                result = check_window([(r, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        # Vertical windows
+        for c in range(N_COLS):
+            for r in range(N_ROWS - 3):
+                result = check_window([(r + i, c) for i in range(4)])
+                if result:
+                    return result
+
+        # Positive diagonal windows
+        for c in range(N_COLS - 3):
+            for r in range(N_ROWS - 3):
+                result = check_window([(r + i, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        # Negative diagonal windows
+        for c in range(N_COLS - 3):
+            for r in range(3, N_ROWS):
+                result = check_window([(r - i, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        return None
+
+    def is_threatening_move(self, piece) -> bool:
+        """Return True if the given piece has a 3-in-a-row threat with a playable open cell."""
+        return self.threatening_position(piece) is not None
 
     def get_current_state(self):
         return self.state

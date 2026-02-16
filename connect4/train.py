@@ -1,3 +1,4 @@
+import argparse
 import pickle
 
 from connect4.environment import Connect4Environment
@@ -16,13 +17,17 @@ def load_q_table(file_reference: str) -> dict[tuple[int, str], float]:
     return table
 
 
-def train_agent():
+def train_agent(episodes: int):
     environment = Connect4Environment()
-    q_train = QLearning(environment, 0.9, 1, 0.6)
+    q_train = QLearning(environment, 0.8, 1, 0.6)
 
-    table = q_train.run(10000)
+    table = q_train.run(episodes)
     save_q_table(table)
 
 
 if __name__ == "__main__":
-    train_agent()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--episodes", type=int, default=10000)
+    args = parser.parse_args()
+
+    train_agent(args.episodes)

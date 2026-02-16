@@ -8,7 +8,7 @@ run:
 	uv run python -m connect4.main
 
 train:
-	uv run python -m connect4.train
+	uv run python -m connect4.train --episodes $(episodes)
 
 typecheck:
 	uv run ty check .

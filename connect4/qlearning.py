@@ -75,10 +75,11 @@ class QLearning:
 
                 next_state, reward = self.env.do_action(action, player)
 
+                acting_player = player
                 player = 2 if player == 1 else 1
 
                 next_action = self.choose_action(next_state, player)
-                self.update_values(state, action, next_state, reward, player)
+                self.update_values(state, action, next_state, reward, acting_player)
 
                 state, action = next_state, next_action
                 done = self.env.is_terminal(player)
