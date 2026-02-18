@@ -1,8 +1,6 @@
-# Agente de Q-learning
-
 import random
-from typing import Optional
 
+from connect4.constants import REWARD_LOSE, REWARD_DRAW, REWARD_STEP
 from connect4.environment import Connect4Environment
 
 
@@ -14,87 +12,90 @@ class QLearning:
         self.alpha = alpha
         self.qtable = {}
 
-    def get_value(self, state: tuple[int, int], action: str) -> float:
-        return self.qtable[(state, action)] if (state, action) in self.qtable else 0
+    def get_value(self, state: tuple, action: int) -> float:
+        return self.qtable.get((state, action), 0.0)
 
-    def choose_action(self, state: tuple[int, int], piece: int) -> Optional[str]:
-        p_actions = self.env.get_possible_actions(piece)
-        if p_actions:
-            return (
-                random.choice(p_actions)
-                if random.random() < self.epsilon
-                else self.best_action(state, piece)
-            )
-        else:
-            return None
+    def choose_action(self, state: tuple, valid_columns: list[int]) -> int:
+        if random.random() < self.epsilon:
+            return random.choice(valid_columns)
+        return self.best_action(state, valid_columns)
+
+    def best_action(self, state: tuple, valid_columns: list[int]) -> int:
+        q_vals = {col: self.get_value(state, col) for col in valid_columns}
+        return max(q_vals, key=lambda c: q_vals[c])
 
     def update_values(
         self,
-        state: tuple[int, int],
-        action: str,
-        next_state: tuple[int, int],
-        reward: int,
-        piece: int,
+        state: tuple,
+        action: int,
+        next_state: tuple,
+        reward: float,
+        next_valid_cols: list[int],
     ) -> None:
         q_sa = self.get_value(state, action)
-        max_q_next_state = max(
-            [
-                self.get_value(next_state, ac)
-                for ac in self.env.get_possible_actions(piece)
-            ]
+        max_q_next = (
+            max(self.get_value(next_state, c) for c in next_valid_cols)
+            if next_valid_cols
+            else 0.0
         )
-        val_q_sa = ((1 - self.alpha) * q_sa) + self.alpha * (
-            reward + (self.gamma * max_q_next_state)
+        new_q = (1 - self.alpha) * q_sa + self.alpha * (
+            reward + self.gamma * max_q_next
         )
-        self.qtable[(state, action)] = val_q_sa
+        self.qtable[(state, action)] = new_q
 
-    def best_action(self, state: tuple[int, int], piece: int) -> str:
-        p_actions = {
-            a: self.get_value(state, a) for a in self.env.get_possible_actions(piece)
-        }
-        return max(p_actions, key=lambda k: p_actions[k]) if p_actions else ""
+    def run(self, episodes: int) -> dict:
+        agent_piece = 1
+        opponent_piece = 2
 
-    def run(self, episodes: int) -> dict[tuple[int, str], float]:
         for episode in range(1, episodes + 1):
-            print("episode", episode)
-            print("epsilon", self.epsilon)
-
             self.env.reset()
-            player = random.randint(1, 2)
 
-            state = self.env.get_current_state()
-            action = self.choose_action(state, player)
+            # Randomly decide who goes first
+            if random.random() < 0.5:
+                opp_col = random.choice(self.env.get_valid_columns())
+                self.env.step(opp_col, opponent_piece)
 
+            state = self.env.get_state()
             done = False
+
             while not done:
-                if action is None:
+                valid_cols = self.env.get_valid_columns()
+                if not valid_cols:
                     break
 
-                next_state, reward = self.env.do_action(action, player)
+                action = self.choose_action(state, valid_cols)
+                next_state, reward, done = self.env.step(action, agent_piece)
 
-                acting_player = player
-                player = 2 if player == 1 else 1
+                if done:
+                    self.update_values(state, action, next_state, reward, [])
+                    break
 
-                next_action = self.choose_action(next_state, player)
-                self.update_values(state, action, next_state, reward, acting_player)
+                # Opponent plays randomly
+                opp_cols = self.env.get_valid_columns()
+                if not opp_cols:
+                    self.update_values(state, action, next_state, REWARD_DRAW, [])
+                    break
 
-                state, action = next_state, next_action
-                done = self.env.is_terminal(player)
+                opp_col = random.choice(opp_cols)
+                next_state_after_opp, _, done = self.env.step(opp_col, opponent_piece)
 
-            if episode % 100 == 0:
-                if self.epsilon > 0.01:
-                    self.epsilon -= self.epsilon * 0.1
+                if done:
+                    self.update_values(
+                        state, action, next_state_after_opp, REWARD_LOSE, []
+                    )
+                    break
 
-            win = self.env.is_winning_move(player)
+                next_valid = self.env.get_valid_columns()
+                self.update_values(
+                    state, action, next_state_after_opp, REWARD_STEP, next_valid
+                )
+                state = next_state_after_opp
 
-            if win:
-                print(f"Player {player} Wins!")
-            else:
-                print("Draw!")
+            # Decay epsilon
+            if episode % 100 == 0 and self.epsilon > 0.05:
+                self.epsilon *= 0.95
 
-            # print(np.flipud(self.env.board))
-            # breakpoint()
-
-            # enable above two lines to track final table
+            if episode % 1000 == 0:
+                print(f"Episode {episode} | epsilon={self.epsilon:.4f}")
 
         return self.qtable

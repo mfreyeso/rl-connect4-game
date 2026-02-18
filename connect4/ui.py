@@ -1,18 +1,17 @@
 import math
-import random
+import sys
 
 import numpy as np
 import pygame
-import sys
 
 from connect4.constants import N_COLS, N_ROWS, SQUARE_SIZE, HEIGHT, WIDTH
 from connect4.environment import Connect4Environment
 
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 YELLOW = (255, 255, 0)
 GREEN = (0, 255, 0)
-
 
 PLAYER_COLORS = {1: YELLOW, 2: GREEN}
 
@@ -78,11 +77,9 @@ class BoardUI:
         self.draw_board(env.board, screen)
         turn = env.turn
 
-        human = random.randint(0, 1)
-        machine = int(not human)
-
-        machine_pos = machine + 1
-        human_pos = human + 1
+        # Agent always trained as piece 1
+        machine_pos = 1
+        human_pos = 2
 
         print(f"Human is Player {human_pos}")
         print(f"Machine is Player {machine_pos}")
@@ -90,32 +87,36 @@ class BoardUI:
 
         while not env.finished:
             for event in pygame.event.get():
-                # Configurando el cierre de la ventana para que el programa no cierre inesperadamente
                 if event.type == pygame.QUIT:
                     sys.exit()
 
                 if event.type == pygame.MOUSEMOTION:
-                    if env.turn != machine:
+                    if env.turn != 0:  # human is turn 1
                         pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
                         posx = event.pos[0]
-                        if env.turn == 0:
-                            pygame.draw.circle(
-                                screen, YELLOW, (posx, int(SQUARE_SIZE / 2)), RADIUS
-                            )
-                        else:
-                            pygame.draw.circle(
-                                screen, GREEN, (posx, int(SQUARE_SIZE / 2)), RADIUS
-                            )
+                        pygame.draw.circle(
+                            screen,
+                            PLAYER_COLORS[human_pos],
+                            (posx, int(SQUARE_SIZE / 2)),
+                            RADIUS,
+                        )
 
                 pygame.display.update()
 
-                if env.turn == machine:
-                    step = env.get_next_agent_step(qtable)
-                    if step is None:
+                # Machine turn (turn == 0, piece 1)
+                if env.turn == 0:
+                    valid_cols = env.get_valid_columns()
+
+                    if not valid_cols:
+                        label = MY_FONT.render("Draw!", 1, WHITE)
+                        screen.blit(label, (40, 10))
+                        env.finished = True
                         continue
-                    row, col = step
-                    print(row, col)
-                    env.drop_piece(row, col, machine_pos)
+
+                    best_col = env.choose_column(machine_pos, qtable)
+
+                    row = env.get_next_open_row(best_col)
+                    env.drop_piece(row, best_col, machine_pos)
 
                     if env.is_winning_move(machine_pos):
                         label = MY_FONT.render(
@@ -126,12 +127,16 @@ class BoardUI:
                         screen.blit(label, (40, 10))
                         env.finished = True
 
-                    turn += 1  # se incrementa en uno el turno
-                    env.turn = turn % 2  # alternando entre cero y uno
+                    if not env.get_valid_columns() and not env.finished:
+                        label = MY_FONT.render("Draw!", 1, WHITE)
+                        screen.blit(label, (40, 10))
+                        env.finished = True
+
+                    turn += 1
+                    env.turn = turn % 2
 
                     print(np.flipud(env.board))
                     self.draw_board(env.board, screen)
-
                     pygame.display.update()
 
                     if env.finished:
@@ -139,6 +144,7 @@ class BoardUI:
 
                     continue
 
+                # Human turn (turn == 1, piece 2)
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, SQUARE_SIZE))
                     posx = event.pos[0]
@@ -157,12 +163,16 @@ class BoardUI:
                             screen.blit(label, (40, 10))
                             env.finished = True
 
-                    turn += 1  # se incrementa en uno el turno
-                    env.turn = turn % 2  # alternando entre cero y uno
+                        if not env.get_valid_columns() and not env.finished:
+                            label = MY_FONT.render("Draw!", 1, WHITE)
+                            screen.blit(label, (40, 10))
+                            env.finished = True
+
+                    turn += 1
+                    env.turn = turn % 2
 
                     print(np.flipud(env.board))
                     self.draw_board(env.board, screen)
-
                     pygame.display.update()
 
                     if env.finished:
