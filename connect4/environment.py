@@ -1,15 +1,14 @@
 import random
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 
-from constants import (
+from connect4.constants import (
     N_ROWS,
     N_COLS,
-    ACTION_DROP,
-    ACTION_BLOCK,
-    ACTION_DROP_WIN,
-    get_reward,
+    REWARD_WIN,
+    REWARD_DRAW,
+    REWARD_STEP,
 )
 
 
@@ -18,7 +17,6 @@ class Connect4Environment:
         self._board = np.zeros((N_ROWS, N_COLS))
         self.initial_turn = random.randint(0, 1)
         self._turn = self.initial_turn
-        self._state = None
         self._finished = False
 
     @property
@@ -41,77 +39,30 @@ class Connect4Environment:
     def finished(self, value):
         self._finished = value
 
-    @property
-    def state(self) -> tuple[int, int]:
-        return self._state
+    # State & action interface for Q-learning
 
-    @state.setter
-    def state(self, value: tuple[int, int]):
-        self._state = value
+    def get_state(self) -> tuple:
+        """Return the board as a hashable tuple for Q-table keys."""
+        return tuple(self._board.flatten().astype(int))
 
-    def state_value(self, state: tuple[int, int]) -> int:
-        return int(self._board[state[0]][state[1]])
+    def get_valid_columns(self) -> list[int]:
+        """Return column indices that still have room."""
+        return [c for c in range(N_COLS) if self._board[N_ROWS - 1][c] == 0]
 
-    def get_possible_positions(
-        self,
-    ) -> tuple[list[tuple[int, int]], dict[tuple[int, int], Any]]:
-        available_positions = []
-        filled_positions = {}
-        temp_filled_cols = []
+    def step(self, col: int, piece: int) -> tuple[tuple, float, bool]:
+        """Place piece in column. Returns (next_state, reward, done)."""
+        row = self.get_next_open_row(col)
+        self.drop_piece(row, col, piece)
 
-        current_row = 0
-        for row in range(N_ROWS):
-            for col in range(N_COLS):
-                if self._board[row][col] == 0:
-                    available_positions.append((row, col))
-                else:
-                    filled_positions[(row, col)] = self.board[row][col]
-                    temp_filled_cols.append(col)
+        if self.is_winning_move(piece):
+            return self.get_state(), REWARD_WIN, True
 
-            if len(temp_filled_cols) != N_COLS:
-                current_row = row
-                break
-            else:
-                temp_filled_cols = []
+        if not self.get_valid_columns():
+            return self.get_state(), REWARD_DRAW, True
 
-        if current_row < N_ROWS - 1:
-            for col in temp_filled_cols:
-                for row in range(0, N_ROWS):
-                    if self._board[row][col] != 0:
-                        if (row, col) not in filled_positions:
-                            filled_positions[(row, col)] = self._board[row][col]
-                    else:
-                        available_positions.append((row, col))
-                        break
+        return self.get_state(), REWARD_STEP, False
 
-        return available_positions, filled_positions
-
-    def get_possible_actions(self, piece: int) -> list[str]:
-        available_positions, filled_positions = self.get_possible_positions()
-
-        # adversary filled positions
-        con_filled_positions = {
-            state: piece_i
-            for state, piece_i in filled_positions.items()
-            if piece_i != piece
-        }
-
-        if len([con_filled_positions]) < 3:
-            # early steps in game, no required block yet
-            actions = [ACTION_DROP]
-        else:
-            adv_piece = next(iter(con_filled_positions.values()))
-            assert adv_piece != piece
-
-            if self.is_winning_move(adv_piece):
-                actions = [ACTION_BLOCK]
-            else:
-                actions = [ACTION_DROP]
-
-        return actions
-
-    def is_terminal(self, piece: int) -> bool:
-        return self.is_winning_move(piece) or (0 not in np.unique(self.board).tolist())
+    # Board helpers
 
     def is_valid_location(self, col):
         return self._board[N_ROWS - 1][col] == 0
@@ -121,36 +72,16 @@ class Connect4Environment:
             if self._board[r][col] == 0:
                 return r
 
-    def do_action(self, action: str, piece: int) -> tuple[tuple[int, int], int]:
-        available_positions, filled_positions = self.get_possible_positions()
-        is_final = self.is_terminal(piece)
-
-        if action == ACTION_DROP:
-            row, col = (
-                self.winner_position(piece)
-                if is_final
-                else random.choice(available_positions)
-            )
-            action = ACTION_DROP_WIN
-        else:
-            adv_piece = next(iter([p for p in filled_positions.values() if p != piece]))
-            row, col = self.winner_position(adv_piece)
-
-        reached_stated = (row, col)
-
-        self._board[row][col] = piece
-        self.state = reached_stated
-
-        return reached_stated, get_reward(action)
-
     def drop_piece(self, row, col, piece):
         self._board[row][col] = piece
+
+    # Win / threat detection
 
     def is_winning_move(self, piece) -> bool:
         return bool(self.winner_position(piece))
 
     def winner_position(self, piece) -> Optional[tuple[int, int]]:
-        # revisando las posiciones horizontales
+        # Horizontal
         for c in range(N_COLS - 3):
             for r in range(N_ROWS):
                 if (
@@ -161,7 +92,7 @@ class Connect4Environment:
                 ):
                     return r, c
 
-        # verificando las posiciones verticales
+        # Vertical
         for c in range(N_COLS):
             for r in range(N_ROWS - 3):
                 if (
@@ -172,7 +103,7 @@ class Connect4Environment:
                 ):
                     return r, c
 
-        # verificando diagonales positivas
+        # Positive diagonal
         for c in range(N_COLS - 3):
             for r in range(N_ROWS - 3):
                 if (
@@ -183,7 +114,7 @@ class Connect4Environment:
                 ):
                     return r, c
 
-        # verificando diagonales negativas
+        # Negative diagonal
         for c in range(N_COLS - 3):
             for r in range(3, N_ROWS):
                 if (
@@ -196,25 +127,82 @@ class Connect4Environment:
 
         return None
 
-    def get_current_state(self):
-        return self.state
+    def threatening_position(self, piece) -> Optional[tuple[int, int]]:
+        """Find a gravity-valid empty cell that completes a 3-in-a-row threat."""
+
+        def is_gravity_valid(r: int, c: int) -> bool:
+            return r == 0 or self._board[r - 1][c] != 0
+
+        def check_window(cells: list[tuple[int, int]]) -> Optional[tuple[int, int]]:
+            values = [self._board[r][c] for r, c in cells]
+            if values.count(piece) == 3 and values.count(0) == 1:
+                empty_idx = values.index(0)
+                er, ec = cells[empty_idx]
+                if is_gravity_valid(er, ec):
+                    return (er, ec)
+            return None
+
+        for c in range(N_COLS - 3):
+            for r in range(N_ROWS):
+                result = check_window([(r, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        for c in range(N_COLS):
+            for r in range(N_ROWS - 3):
+                result = check_window([(r + i, c) for i in range(4)])
+                if result:
+                    return result
+
+        for c in range(N_COLS - 3):
+            for r in range(N_ROWS - 3):
+                result = check_window([(r + i, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        for c in range(N_COLS - 3):
+            for r in range(3, N_ROWS):
+                result = check_window([(r - i, c + i) for i in range(4)])
+                if result:
+                    return result
+
+        return None
+
+    def is_threatening_move(self, piece) -> bool:
+        """Return True if the given piece has a 3-in-a-row threat with a playable open cell."""
+        return self.threatening_position(piece) is not None
+
+    # Agent column selection with heuristic priority
+
+    def choose_column(self, piece: int, qtable: dict) -> int:
+        """Pick a column using heuristic win/block priority, then Q-table fallback."""
+        valid_cols = self.get_valid_columns()
+        opp = 2 if piece == 1 else 1
+
+        for c in valid_cols:
+            r = self.get_next_open_row(c)
+            self._board[r][c] = piece
+            win = self.is_winning_move(piece)
+            self._board[r][c] = 0
+            if win:
+                return c
+
+        for c in valid_cols:
+            r = self.get_next_open_row(c)
+            self._board[r][c] = opp
+            win = self.is_winning_move(opp)
+            self._board[r][c] = 0
+            if win:
+                return c
+
+        state = self.get_state()
+        q_vals = {c: qtable.get((state, c), 0.0) for c in valid_cols}
+        return max(q_vals, key=lambda c: q_vals[c])
+
+    # Lifecycle
 
     def reset(self):
         self._board = np.zeros((N_ROWS, N_COLS))
         self.initial_turn = random.randint(0, 1)
         self._turn = self.initial_turn
-        self._state = None
         self._finished = False
-
-    def get_next_agent_step(self, qtable) -> tuple[int, int]:
-        available_positions, filed_positions = self.get_possible_positions()
-        p_actions = {
-            pos: value
-            for pos, value in qtable.items()
-            if pos[0] in available_positions and pos not in filed_positions
-        }
-
-        max_item = max(p_actions, key=p_actions.get) if p_actions else None
-        if max_item:
-            # return position, no action
-            return max_item[0]
