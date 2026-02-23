@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: connect4-game
+    runtime: docker
+    plan: free
+    envVars:
+      - key: Q_TABLE_PATH
+        value: q_table.pkl
