@@ -14,46 +14,46 @@
 
   /* ---- Colours ---- */
   const COLORS = {
-    bg:        "#141624",
-    board:     "#1e3c96",
+    bg: "#141624",
+    board: "#1e3c96",
     cellEmpty: "#0f111e",
-    player1:   "#e63946",
-    player2:   "#ffc832",
-    white:     "#ffffff",
-    win:       "#32cd64",
-    lose:      "#e63946",
-    draw:      "#b4b4c8",
+    player1: "#e63946",
+    player2: "#ffc832",
+    white: "#ffffff",
+    win: "#32cd64",
+    lose: "#e63946",
+    draw: "#b4b4c8",
     hoverGhost: "rgba(255, 200, 50, 0.35)",
   };
 
   /* ---- Sizing (responsive) ---- */
   function squareSize() {
-    return Math.min(85, Math.floor((window.innerWidth - 60) / N_COLS));
+    return Math.max(40, Math.min(85, Math.floor((window.innerWidth - 60) / N_COLS)));
   }
 
   /* ---- DOM refs ---- */
-  const $startScreen  = document.getElementById("screen-start");
-  const $gameScreen   = document.getElementById("screen-game");
+  const $startScreen = document.getElementById("screen-start");
+  const $gameScreen = document.getElementById("screen-game");
   const $modalOverlay = document.getElementById("modal-overlay");
-  const $nicknameIn   = document.getElementById("nickname-input");
-  const $btnPlay      = document.getElementById("btn-play");
-  const $humanName    = document.getElementById("human-name");
-  const $humanScore   = document.getElementById("human-score");
+  const $nicknameIn = document.getElementById("nickname-input");
+  const $btnPlay = document.getElementById("btn-play");
+  const $humanName = document.getElementById("human-name");
+  const $humanScore = document.getElementById("human-score");
   const $machineScore = document.getElementById("machine-score");
-  const $canvas       = document.getElementById("board-canvas");
-  const $turnInd      = document.getElementById("turn-indicator");
-  const $modalResult  = document.getElementById("modal-result");
-  const $modalScores  = document.getElementById("modal-scores");
-  const $btnYes       = document.getElementById("btn-yes");
-  const $btnNo        = document.getElementById("btn-no");
-  const ctx           = $canvas.getContext("2d");
+  const $canvas = document.getElementById("board-canvas");
+  const $turnInd = document.getElementById("turn-indicator");
+  const $modalResult = document.getElementById("modal-result");
+  const $modalScores = document.getElementById("modal-scores");
+  const $btnYes = document.getElementById("btn-yes");
+  const $btnNo = document.getElementById("btn-no");
+  const ctx = $canvas.getContext("2d");
 
   /* ---- Game state ---- */
-  let sessionId    = null;
-  let nickname     = "";
-  let board        = [];     // [row][col], row 0 = bottom
-  let hoverCol     = -1;
-  let locked       = false;  // true while waiting for API or animation
+  let sessionId = null;
+  let nickname = "";
+  let board = [];     // [row][col], row 0 = bottom
+  let hoverCol = -1;
+  let locked = false;  // true while waiting for API or animation
   let gameFinished = false;
 
   /* ============================================================
@@ -61,13 +61,13 @@
      ============================================================ */
   function showScreen(name) {
     $startScreen.classList.toggle("active", name === "start");
-    $gameScreen.classList.toggle("active",  name === "game");
+    $gameScreen.classList.toggle("active", name === "game");
     if (name === "start") $nicknameIn.focus();
   }
 
   function showModal(result, humanScore, machineScore) {
     let msg, cls;
-    if (result === "human_win")   { msg = `${nickname} wins!`; cls = "win";  }
+    if (result === "human_win") { msg = `${nickname} wins!`; cls = "win"; }
     else if (result === "machine_win") { msg = "Machine wins!"; cls = "lose"; }
     else { msg = "It's a draw!"; cls = "draw"; }
 
@@ -84,14 +84,14 @@
      ============================================================ */
   function setupCanvas() {
     const SQ = squareSize();
-    $canvas.width  = N_COLS * SQ;
+    $canvas.width = N_COLS * SQ;
     $canvas.height = (N_ROWS + 1) * SQ;  // +1 for hover row at top
     drawBoard();
   }
 
   function drawBoard(highlightCells) {
     const SQ = squareSize();
-    const R  = SQ / 2 - 5;
+    const R = SQ / 2 - 5;
 
     // Hover row background
     ctx.fillStyle = COLORS.board;
@@ -128,9 +128,9 @@
         ctx.arc(x + SQ / 2, y + SQ / 2, R, 0, Math.PI * 2);
 
         const piece = board[r] ? board[r][c] : 0;
-        if (piece === MACHINE_PIECE)     ctx.fillStyle = COLORS.player1;
-        else if (piece === HUMAN_PIECE)  ctx.fillStyle = COLORS.player2;
-        else                             ctx.fillStyle = COLORS.cellEmpty;
+        if (piece === MACHINE_PIECE) ctx.fillStyle = COLORS.player1;
+        else if (piece === HUMAN_PIECE) ctx.fillStyle = COLORS.player2;
+        else ctx.fillStyle = COLORS.cellEmpty;
 
         // Highlight winning cells
         if (highlightCells && highlightCells.some(([hr, hc]) => hr === r && hc === c)) {
@@ -147,11 +147,11 @@
   /* ---- Drop animation ---- */
   function animateDrop(col, targetRow, piece, callback) {
     const SQ = squareSize();
-    const R  = SQ / 2 - 5;
+    const R = SQ / 2 - 5;
     const color = piece === MACHINE_PIECE ? COLORS.player1 : COLORS.player2;
 
-    const startY  = SQ / 2;                                 // top of board
-    const endY    = (N_ROWS - targetRow) * SQ + SQ / 2;     // destination
+    const startY = SQ / 2;                                 // top of board
+    const endY = (N_ROWS - targetRow) * SQ + SQ / 2;     // destination
     const duration = 250 + (N_ROWS - targetRow) * 35;       // ms
     const t0 = performance.now();
 
@@ -400,6 +400,21 @@
     $btnPlay.disabled = false;
     sessionId = null;
   });
+
+  /* -- Touch support for mobile -- */
+  $canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault(); // prevent page scroll while playing
+  }, { passive: false });
+
+  $canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const SQ = squareSize();
+    const rect = $canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const col = Math.floor(x / SQ);
+    if (col >= 0 && col < N_COLS) humanMove(col);
+  }, { passive: false });
 
   /* -- Responsive resize -- */
   window.addEventListener("resize", () => {
