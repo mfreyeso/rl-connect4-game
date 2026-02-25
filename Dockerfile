@@ -16,16 +16,20 @@ COPY static/ static/
 # Copy Q-table (trained model)
 COPY q_table.pkl ./
 
-# Install dependencies
-RUN uv sync --frozen --no-dev
+# Install dependencies (as root, before dropping privileges)
+RUN uv sync --frozen --no-dev --link-mode=copy
+
+# Give appuser read access to the installed venv
+RUN chown -R appuser:appuser /app
 
 # Drop privileges
 USER appuser
 
 ENV ENV=production
+ENV UV_CACHE_DIR=/tmp/uv-cache
 
 # Expose port
 EXPOSE 8000
 
-# Run the web server
-CMD ["uv", "run", "uvicorn", "connect4.api:app", "--host", "0.0.0.0", "--port", "8000"]
+# --no-sync prevents uv from trying to re-install packages as appuser
+CMD ["uv", "run", "--no-sync", "uvicorn", "connect4.api:app", "--host", "0.0.0.0", "--port", "8000"]
