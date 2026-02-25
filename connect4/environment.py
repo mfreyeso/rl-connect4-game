@@ -1,5 +1,5 @@
 import random
-from typing import Optional
+
 
 import numpy as np
 
@@ -80,7 +80,7 @@ class Connect4Environment:
     def is_winning_move(self, piece) -> bool:
         return bool(self.winner_position(piece))
 
-    def winner_position(self, piece) -> Optional[tuple[int, int]]:
+    def winner_position(self, piece) -> list[tuple[int, int]] | None:
         # Horizontal
         for c in range(N_COLS - 3):
             for r in range(N_ROWS):
@@ -90,7 +90,7 @@ class Connect4Environment:
                     and self._board[r][c + 2] == piece
                     and self._board[r][c + 3] == piece
                 ):
-                    return r, c
+                    return [(r, c + i) for i in range(4)]
 
         # Vertical
         for c in range(N_COLS):
@@ -101,7 +101,7 @@ class Connect4Environment:
                     and self._board[r + 2][c] == piece
                     and self._board[r + 3][c] == piece
                 ):
-                    return r, c
+                    return [(r + i, c) for i in range(4)]
 
         # Positive diagonal
         for c in range(N_COLS - 3):
@@ -112,7 +112,7 @@ class Connect4Environment:
                     and self._board[r + 2][c + 2] == piece
                     and self._board[r + 3][c + 3] == piece
                 ):
-                    return r, c
+                    return [(r + i, c + i) for i in range(4)]
 
         # Negative diagonal
         for c in range(N_COLS - 3):
@@ -123,17 +123,17 @@ class Connect4Environment:
                     and self._board[r - 2][c + 2] == piece
                     and self._board[r - 3][c + 3] == piece
                 ):
-                    return r, c
+                    return [(r - i, c + i) for i in range(4)]
 
         return None
 
-    def threatening_position(self, piece) -> Optional[tuple[int, int]]:
+    def threatening_position(self, piece) -> tuple[int, int] | None:
         """Find a gravity-valid empty cell that completes a 3-in-a-row threat."""
 
         def is_gravity_valid(r: int, c: int) -> bool:
             return r == 0 or self._board[r - 1][c] != 0
 
-        def check_window(cells: list[tuple[int, int]]) -> Optional[tuple[int, int]]:
+        def check_window(cells: list[tuple[int, int]]) -> tuple[int, int] | None:
             values = [self._board[r][c] for r, c in cells]
             if values.count(piece) == 3 and values.count(0) == 1:
                 empty_idx = values.index(0)

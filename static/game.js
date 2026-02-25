@@ -55,6 +55,7 @@
   let hoverCol = -1;
   let locked = false;  // true while waiting for API or animation
   let gameFinished = false;
+  let winHighlightTimer = null;  // animation frame ID for pulsing glow
 
   /* ============================================================
      Screen management
@@ -89,7 +90,7 @@
     drawBoard();
   }
 
-  function drawBoard(highlightCells) {
+  function drawBoard(highlightCells, highlightPhase) {
     const SQ = squareSize();
     const R = SQ / 2 - 5;
 
@@ -132,16 +133,39 @@
         else if (piece === HUMAN_PIECE) ctx.fillStyle = COLORS.player2;
         else ctx.fillStyle = COLORS.cellEmpty;
 
-        // Highlight winning cells
+        // Highlight winning cells with pulsing glow
         if (highlightCells && highlightCells.some(([hr, hc]) => hr === r && hc === c)) {
+          const pulse = highlightPhase !== undefined
+            ? 22 + 16 * Math.sin(highlightPhase)
+            : 28;
           ctx.shadowColor = ctx.fillStyle;
-          ctx.shadowBlur = 18;
+          ctx.shadowBlur = pulse;
         }
 
         ctx.fill();
         ctx.shadowBlur = 0;
       }
     }
+  }
+  /* ---- Win highlight animation ---- */
+  function startWinHighlight(winningCells, state, durationMs) {
+    if (winHighlightTimer) cancelAnimationFrame(winHighlightTimer);
+    const t0 = performance.now();
+
+    function pulse(now) {
+      const elapsed = now - t0;
+      const phase = (elapsed / 200);  // controls pulse speed
+      drawBoard(winningCells, phase);
+
+      if (elapsed < durationMs) {
+        winHighlightTimer = requestAnimationFrame(pulse);
+      } else {
+        winHighlightTimer = null;
+        showModal(state.result, state.human_score, state.machine_score);
+      }
+    }
+
+    winHighlightTimer = requestAnimationFrame(pulse);
   }
 
   /* ---- Drop animation ---- */
@@ -213,6 +237,7 @@
 
   async function startNewGame() {
     hideModal();
+    if (winHighlightTimer) { cancelAnimationFrame(winHighlightTimer); winHighlightTimer = null; }
     gameFinished = false;
     locked = true;
     $turnInd.textContent = "Starting...";
@@ -291,13 +316,12 @@
           $humanScore.textContent = state.human_score;
           $machineScore.textContent = state.machine_score;
 
-          // If human won, just draw final board and show modal
+          // If human won, draw with highlight and delay modal
           if (state.result === "human_win") {
-            drawBoard();
             locked = false;
-            $turnInd.textContent = "";
             $turnInd.classList.remove("thinking");
-            setTimeout(() => showModal(state.result, state.human_score, state.machine_score), 500);
+            $turnInd.textContent = "";
+            startWinHighlight(state.winning_cells, state, 3000);
             return;
           }
         }
@@ -315,10 +339,14 @@
               gameFinished = true;
               $humanScore.textContent = state.human_score;
               $machineScore.textContent = state.machine_score;
-              drawBoard();
               locked = false;
               $turnInd.textContent = "";
-              setTimeout(() => showModal(state.result, state.human_score, state.machine_score), 500);
+              if (state.result === "machine_win" || state.result === "human_win") {
+                startWinHighlight(state.winning_cells, state, 3000);
+              } else {
+                drawBoard();
+                setTimeout(() => showModal(state.result, state.human_score, state.machine_score), 500);
+              }
             } else {
               locked = false;
               $turnInd.textContent = "Your turn";
@@ -332,7 +360,7 @@
           locked = false;
           if (state.finished) {
             $turnInd.textContent = "";
-            setTimeout(() => showModal(state.result, state.human_score, state.machine_score), 500);
+            setTimeout(() => showModal(state.result, state.human_score, state.machine_score), 600);
           }
         }
       } catch (err) {

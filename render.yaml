@@ -6,3 +6,5 @@ services:
     envVars:
       - key: Q_TABLE_PATH
         value: q_table.pkl
+      - key: ENV
+        value: production

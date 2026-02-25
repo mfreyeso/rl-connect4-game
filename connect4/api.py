@@ -1,18 +1,19 @@
 """FastAPI web server for Connect 4."""
 
-from __future__ import annotations
-
-from typing import Dict, List, Optional
-
 import os
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from connect4.environment import Connect4Environment
 from connect4.train import load_q_table
@@ -28,10 +29,11 @@ except FileNotFoundError:
     print(f"⚠️  Q-table not found at {_Q_TABLE_PATH} — agent will play randomly.")
 
 # ---------------------------------------------------------------------------
-# Session store
+# Session store (bounded OrderedDict for FIFO eviction)
 # ---------------------------------------------------------------------------
 MACHINE_PIECE = 1
 HUMAN_PIECE = 2
+MAX_SESSIONS = 200  # keep memory safe on 512 MB free tier
 
 
 @dataclass
@@ -42,7 +44,7 @@ class GameSession:
     machine_score: int = 0
 
 
-_sessions: Dict[str, GameSession] = {}
+_sessions: OrderedDict[str, GameSession] = OrderedDict()
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -51,7 +53,7 @@ _sessions: Dict[str, GameSession] = {}
 
 class NewGameRequest(BaseModel):
     nickname: str = "Player"
-    session_id: Optional[str] = None  # reuse session to keep scores
+    session_id: str | None = None  # reuse session to keep scores
 
 
 class MoveRequest(BaseModel):
@@ -59,14 +61,15 @@ class MoveRequest(BaseModel):
 
 
 class BoardState(BaseModel):
-    board: List[List[int]]
+    board: list[list[int]]
     finished: bool
-    result: Optional[str] = None  # "human_win", "machine_win", "draw", or None
+    result: str | None = None  # "human_win", "machine_win", "draw", or None
     human_score: int
     machine_score: int
     nickname: str
     human_goes_first: bool
-    machine_move: Optional[int] = None  # column the machine just played, if any
+    machine_move: int | None = None  # column the machine just played, if any
+    winning_cells: list[list[int]] | None = None  # [[row, col], ...] for the 4-in-a-row
 
 
 class NewGameResponse(BaseModel):
@@ -79,15 +82,16 @@ class NewGameResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _board_to_list(env: Connect4Environment) -> List[List[int]]:
+def _board_to_list(env: Connect4Environment) -> list[list[int]]:
     """Convert numpy board to JSON-friendly nested list (row 0 = bottom)."""
     return env.board.astype(int).tolist()
 
 
 def _build_board_state(
     session: GameSession,
-    result: Optional[str] = None,
-    machine_move: Optional[int] = None,
+    result: str | None = None,
+    machine_move: int | None = None,
+    winning_cells: list[list[int]] | None = None,
 ) -> BoardState:
     return BoardState(
         board=_board_to_list(session.env),
@@ -98,13 +102,50 @@ def _build_board_state(
         nickname=session.nickname,
         human_goes_first=session.env.initial_turn != 0,
         machine_move=machine_move,
+        winning_cells=winning_cells,
     )
 
 
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Connect 4")
+_is_production = os.environ.get("ENV") == "production"
+
+app = FastAPI(
+    title="Connect 4",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None,
+)
+
+# --- Rate limiter ---
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please slow down."},
+    )
+
+
+# --- CORS ---
+_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Add the Render production URL
+_RENDER_URL = os.environ.get("RENDER_EXTERNAL_URL")
+if _RENDER_URL:
+    _ALLOWED_ORIGINS.append(_RENDER_URL)
+
+app.add_middleware(
+    CORSMiddleware,  # ty: ignore[invalid-argument-type]
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 # ---------------------------------------------------------------------------
 # API routes
@@ -112,19 +153,26 @@ app = FastAPI(title="Connect 4")
 
 
 @app.post("/api/game/new", response_model=NewGameResponse)
-def new_game(req: NewGameRequest):
+@limiter.limit("10/minute")
+def new_game(request: Request, req: NewGameRequest):
     """Start a new game.  Optionally reuse a session to keep scores."""
     if req.session_id and req.session_id in _sessions:
         session = _sessions[req.session_id]
         session.env = Connect4Environment()
         session.nickname = req.nickname or session.nickname
         sid = req.session_id
+        # Move to end so it's the most-recently-used
+        _sessions.move_to_end(sid)
     else:
         sid = uuid.uuid4().hex
         session = GameSession(nickname=req.nickname)
         _sessions[sid] = session
 
-    machine_move: Optional[int] = None
+        # Evict oldest session if we've exceeded the cap
+        while len(_sessions) > MAX_SESSIONS:
+            _sessions.popitem(last=False)
+
+    machine_move: int | None = None
 
     # If machine goes first (turn == 0), play its opening move immediately.
     if session.env.turn == 0:
@@ -141,7 +189,8 @@ def new_game(req: NewGameRequest):
 
 
 @app.post("/api/game/{session_id}/move", response_model=BoardState)
-def make_move(session_id: str, req: MoveRequest):
+@limiter.limit("30/minute")
+def make_move(request: Request, session_id: str, req: MoveRequest):
     """Human places a piece, then the machine responds."""
     session = _sessions.get(session_id)
     if not session:
@@ -162,7 +211,9 @@ def make_move(session_id: str, req: MoveRequest):
     if env.is_winning_move(HUMAN_PIECE):
         env.finished = True
         session.human_score += 1
-        return _build_board_state(session, result="human_win")
+        cells = env.winner_position(HUMAN_PIECE)
+        wc = [list(c) for c in cells] if cells else None
+        return _build_board_state(session, result="human_win", winning_cells=wc)
 
     if not env.get_valid_columns():
         env.finished = True
@@ -176,7 +227,14 @@ def make_move(session_id: str, req: MoveRequest):
     if env.is_winning_move(MACHINE_PIECE):
         env.finished = True
         session.machine_score += 1
-        return _build_board_state(session, result="machine_win", machine_move=best_col)
+        cells = env.winner_position(MACHINE_PIECE)
+        wc = [list(c) for c in cells] if cells else None
+        return _build_board_state(
+            session,
+            result="machine_win",
+            machine_move=best_col,
+            winning_cells=wc,
+        )
 
     if not env.get_valid_columns():
         env.finished = True
@@ -186,7 +244,8 @@ def make_move(session_id: str, req: MoveRequest):
 
 
 @app.get("/api/game/{session_id}", response_model=BoardState)
-def get_state(session_id: str):
+@limiter.limit("30/minute")
+def get_state(request: Request, session_id: str):
     """Return the current board state for a session."""
     session = _sessions.get(session_id)
     if not session:
