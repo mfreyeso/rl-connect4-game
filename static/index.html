@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Play Connect 4 against a Reinforcement Learning agent trained with Q-Learning." />
+  <title>Connect 4 — RL Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- ===== Start Screen ===== -->
+  <div id="screen-start" class="screen active">
+    <div class="start-container">
+      <h1 class="title">Connect <span class="accent">4</span></h1>
+      <p class="subtitle">Challenge the RL Agent</p>
+      <div class="divider"></div>
+      <label class="input-label" for="nickname-input">Enter your nickname</label>
+      <input
+        id="nickname-input"
+        class="nickname-input"
+        type="text"
+        maxlength="16"
+        placeholder="e.g. Mario"
+        autocomplete="off"
+        autofocus
+      />
+      <button id="btn-play" class="btn-primary" disabled>Play</button>
+    </div>
+  </div>
+
+  <!-- ===== Game Screen ===== -->
+  <div id="screen-game" class="screen">
+    <header id="score-header" class="score-header">
+      <div class="score-side score-left">
+        <span id="human-name" class="score-name human-color">Player</span>
+        <span id="human-score" class="score-number">0</span>
+      </div>
+      <span class="vs-label">vs</span>
+      <div class="score-side score-right">
+        <span class="score-name machine-color">Machine</span>
+        <span id="machine-score" class="score-number">0</span>
+      </div>
+    </header>
+    <div id="board-wrapper" class="board-wrapper">
+      <canvas id="board-canvas"></canvas>
+    </div>
+    <p id="turn-indicator" class="turn-indicator">Your turn</p>
+  </div>
+
+  <!-- ===== End-Game Modal ===== -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-card">
+      <p id="modal-result" class="modal-result">You win!</p>
+      <p id="modal-scores" class="modal-scores">Player: 0 — Machine: 0</p>
+      <p class="modal-question">Play again?</p>
+      <div class="modal-buttons">
+        <button id="btn-yes" class="btn-modal btn-yes">Yes</button>
+        <button id="btn-no" class="btn-modal btn-no">No</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/game.js"></script>
+</body>
+</html>
