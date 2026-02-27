@@ -46,6 +46,9 @@
   const $modalScores = document.getElementById("modal-scores");
   const $btnYes = document.getElementById("btn-yes");
   const $btnNo = document.getElementById("btn-no");
+  const $btnAbout = document.getElementById("btn-about");
+  const $aboutOverlay = document.getElementById("about-overlay");
+  const $btnAboutClose = document.getElementById("btn-about-close");
   const ctx = $canvas.getContext("2d");
 
   /* ---- Game state ---- */
@@ -386,6 +389,13 @@
       nickname = $nicknameIn.value.trim();
       startNewGame();
     }
+  });
+
+  $btnAbout.addEventListener("click", () => {
+    $aboutOverlay.classList.add("visible");
+  });
+  $btnAboutClose.addEventListener("click", () => {
+    $aboutOverlay.classList.remove("visible");
   });
 
   $btnPlay.addEventListener("click", () => {

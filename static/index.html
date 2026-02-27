@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
+
 <body>
   <!-- ===== Start Screen ===== -->
   <div id="screen-start" class="screen active">
@@ -18,16 +20,10 @@
       <p class="subtitle">Challenge the RL Agent</p>
       <div class="divider"></div>
       <label class="input-label" for="nickname-input">Enter your nickname</label>
-      <input
-        id="nickname-input"
-        class="nickname-input"
-        type="text"
-        maxlength="16"
-        placeholder="e.g. Mario"
-        autocomplete="off"
-        autofocus
-      />
+      <input id="nickname-input" class="nickname-input" type="text" maxlength="16" placeholder="e.g. Mario"
+        autocomplete="off" autofocus />
       <button id="btn-play" class="btn-primary" disabled>Play</button>
+      <button id="btn-about" class="btn-secondary">About</button>
     </div>
   </div>
 
@@ -63,6 +59,21 @@
     </div>
   </div>
 
+  <!-- ===== About Modal ===== -->
+  <div id="about-overlay" class="modal-overlay">
+    <div class="modal-card about-card">
+      <p class="about-text">
+        A Connect 4 game built with a custom reinforcement learning agent.
+        Created for the 2024 Reinforcement Learning course at Universidad de los Andes,
+        this project explores the application of the Q-learning algorithm in strategic gameplay.
+      </p>
+      <p class="about-author">Author: <a href="https://github.com/mfreyeso" target="_blank"
+          rel="noopener noreferrer">Mario Reyes Ojeda</a></p>
+      <button id="btn-about-close" class="btn-modal btn-yes">Close</button>
+    </div>
+  </div>
+
   <script src="/static/game.js"></script>
 </body>
+
 </html>

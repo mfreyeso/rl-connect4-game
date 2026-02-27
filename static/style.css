@@ -4,23 +4,31 @@
    ============================================================ */
 
 /* --- Reset & base --- */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
   /* Palette — mirrors constants.py */
-  --bg:            #141624;
-  --board:         #1e3c96;
-  --cell-empty:    #0f111e;
-  --player1:       #e63946;   /* machine — red  */
-  --player2:       #ffc832;   /* human   — gold */
-  --white:         #ffffff;
-  --light-gray:    #b4b4c8;
-  --accent:        #648cff;
-  --accent-hover:  #82a5ff;
-  --win:           #32cd64;
-  --lose:          #e63946;
-  --draw:          #b4b4c8;
-  --overlay:       rgba(0, 0, 0, 0.75);
+  --bg: #141624;
+  --board: #1e3c96;
+  --cell-empty: #0f111e;
+  --player1: #e63946;
+  /* machine — red  */
+  --player2: #ffc832;
+  /* human   — gold */
+  --white: #ffffff;
+  --light-gray: #b4b4c8;
+  --accent: #648cff;
+  --accent-hover: #82a5ff;
+  --win: #32cd64;
+  --lose: #e63946;
+  --draw: #b4b4c8;
+  --overlay: rgba(0, 0, 0, 0.75);
 
   /* Typography */
   --font: 'Inter', system-ui, -apple-system, sans-serif;
@@ -31,7 +39,9 @@
   --header-h: 72px;
 }
 
-html { font-size: 16px; }
+html {
+  font-size: 16px;
+}
 
 body {
   font-family: var(--font);
@@ -55,7 +65,10 @@ body {
   align-items: center;
   justify-content: center;
 }
-.screen.active { display: flex; }
+
+.screen.active {
+  display: flex;
+}
 
 /* ============================================================
    Start Screen
@@ -73,7 +86,10 @@ body {
   font-weight: 800;
   letter-spacing: -1px;
 }
-.title .accent { color: var(--accent); }
+
+.title .accent {
+  color: var(--accent);
+}
 
 .subtitle {
   color: var(--light-gray);
@@ -107,7 +123,11 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
   text-align: center;
 }
-.nickname-input::placeholder { color: rgba(180, 180, 200, 0.45); }
+
+.nickname-input::placeholder {
+  color: rgba(180, 180, 200, 0.45);
+}
+
 .nickname-input:focus {
   border-color: var(--accent-hover);
   box-shadow: 0 0 20px rgba(100, 140, 255, 0.25);
@@ -127,17 +147,78 @@ body {
   cursor: pointer;
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
 }
+
 .btn-primary:disabled {
   background: rgba(60, 65, 90, 0.8);
   cursor: not-allowed;
   transform: none;
 }
+
 .btn-primary:not(:disabled):hover {
   background: var(--accent-hover);
   transform: translateY(-2px);
   box-shadow: 0 6px 24px rgba(100, 140, 255, 0.3);
 }
-.btn-primary:not(:disabled):active { transform: translateY(0); }
+
+.btn-primary:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  margin-top: 4px;
+  width: min(140px, 45vw);
+  padding: 9px 0;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--light-gray);
+  background: transparent;
+  border: 1.5px solid rgba(180, 180, 200, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-secondary:hover {
+  color: var(--white);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(100, 140, 255, 0.15);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+/* About modal content */
+.about-card {
+  max-width: 380px;
+  padding-left: clamp(24px, 5vw, 40px);
+  padding-right: clamp(24px, 5vw, 40px);
+}
+
+.about-text {
+  color: var(--light-gray);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.about-author {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.about-author a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.about-author a:hover {
+  text-decoration: underline;
+}
 
 /* ============================================================
    Game Screen
@@ -160,25 +241,50 @@ body {
   flex-direction: column;
   gap: 2px;
 }
-.score-right { text-align: right; }
 
-.score-name { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.human-color   { color: var(--player2); }
-.machine-color { color: var(--player1); }
+.score-right {
+  text-align: right;
+}
 
-.score-number { font-size: 1.6rem; font-weight: 800; }
+.score-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
-.vs-label { color: var(--light-gray); font-size: 0.9rem; font-weight: 600; }
+.human-color {
+  color: var(--player2);
+}
+
+.machine-color {
+  color: var(--player1);
+}
+
+.score-number {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.vs-label {
+  color: var(--light-gray);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 
 .board-wrapper {
   background: var(--board);
   border-radius: 0 0 16px 16px;
   padding: 10px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   animation: fadeIn 0.4s ease;
 }
 
-#board-canvas { display: block; border-radius: 8px; cursor: pointer; }
+#board-canvas {
+  display: block;
+  border-radius: 8px;
+  cursor: pointer;
+}
 
 .turn-indicator {
   margin-top: 14px;
@@ -188,7 +294,10 @@ body {
   min-height: 1.4em;
   transition: color 0.2s;
 }
-.turn-indicator.thinking { color: var(--player1); }
+
+.turn-indicator.thinking {
+  color: var(--player1);
+}
 
 /* ============================================================
    End-Game Modal
@@ -203,7 +312,10 @@ body {
   backdrop-filter: blur(6px);
   z-index: 100;
 }
-.modal-overlay.visible { display: flex; }
+
+.modal-overlay.visible {
+  display: flex;
+}
 
 .modal-card {
   background: rgba(30, 34, 55, 0.97);
@@ -220,16 +332,40 @@ body {
   max-width: calc(100vw - 32px);
 }
 
-.modal-result { font-size: 2.2rem; font-weight: 800; }
-.modal-result.win  { color: var(--win);  }
-.modal-result.lose { color: var(--lose); }
-.modal-result.draw { color: var(--draw); }
+.modal-result {
+  font-size: 2.2rem;
+  font-weight: 800;
+}
 
-.modal-scores { color: var(--light-gray); font-size: 1rem; }
+.modal-result.win {
+  color: var(--win);
+}
 
-.modal-question { font-size: 1.1rem; margin-top: 4px; }
+.modal-result.lose {
+  color: var(--lose);
+}
 
-.modal-buttons { display: flex; gap: 20px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.modal-result.draw {
+  color: var(--draw);
+}
+
+.modal-scores {
+  color: var(--light-gray);
+  font-size: 1rem;
+}
+
+.modal-question {
+  font-size: 1.1rem;
+  margin-top: 4px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 20px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 
 .btn-modal {
   width: 120px;
@@ -243,31 +379,68 @@ body {
   cursor: pointer;
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
 }
-.btn-modal:hover { transform: translateY(-2px); }
-.btn-modal:active { transform: translateY(0); }
 
-.btn-yes { background: #28a046; }
-.btn-yes:hover { background: var(--win); box-shadow: 0 4px 18px rgba(50, 205, 100, 0.35); }
+.btn-modal:hover {
+  transform: translateY(-2px);
+}
 
-.btn-no { background: #a02832; }
-.btn-no:hover { background: var(--lose); box-shadow: 0 4px 18px rgba(230, 57, 70, 0.35); }
+.btn-modal:active {
+  transform: translateY(0);
+}
+
+.btn-yes {
+  background: #28a046;
+}
+
+.btn-yes:hover {
+  background: var(--win);
+  box-shadow: 0 4px 18px rgba(50, 205, 100, 0.35);
+}
+
+.btn-no {
+  background: #a02832;
+}
+
+.btn-no:hover {
+  background: var(--lose);
+  box-shadow: 0 4px 18px rgba(230, 57, 70, 0.35);
+}
 
 /* ============================================================
    Animations
    ============================================================ */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes pieceDrop {
-  from { transform: translateY(var(--drop-from)); }
-  to   { transform: translateY(0); }
+  from {
+    transform: translateY(var(--drop-from));
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 /* ============================================================
