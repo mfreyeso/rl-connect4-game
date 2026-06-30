@@ -7,6 +7,12 @@ We were asked to implement a reinforcement learning agent to play Connect 4 usin
 I will incrementally add features to this project for example include levels of difficulty for the agent.
 I plan to use a neural network to approximate the Q-values in the next release.
 
+## First and Foremost, Play :D
+
+Go to https://rl-connect4-game.onrender.com/
+You could see a cold starter, it's because is running on a free tier.
+Enjoy!
+
 ## Setup
 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
