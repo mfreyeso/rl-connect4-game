@@ -1,29 +1,36 @@
 import pygame
 
-from connect4.constants import WIDTH, HEIGHT, WINDOW_TITLE, BG_COLOR
+from connect4.constants import WIDTH, HEIGHT, WINDOW_TITLE
 from connect4.environment import Connect4Environment
 from connect4.train import load_q_table
-from connect4.ui import BoardUI, StartScreen, EndGameModal
-
+from connect4.ui import BoardUI, StartScreen, EndGameModal, LeaderboardModal
+from connect4.db.engine import init_db, get_db_session
+from connect4.db.repository import get_or_create_player, record_match_result
 
 if __name__ == "__main__":
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption(WINDOW_TITLE)
 
+    init_db()
     board_ui = BoardUI()
     start_screen = StartScreen()
     end_modal = EndGameModal()
+    leaderboard_modal = LeaderboardModal()
     q_table = load_q_table("q_table.pkl")
 
     state = "start"
     nickname = ""
+    player_id = None
     human_score = 0
     machine_score = 0
 
     while True:
         if state == "start":
             nickname = start_screen.show(screen)
+            with next(get_db_session()) as db:
+                player = get_or_create_player(db, nickname)
+                player_id = player.id
             human_score = 0
             machine_score = 0
             state = "play"
@@ -37,10 +44,19 @@ if __name__ == "__main__":
                 human_score += 1
             elif result == "machine_win":
                 machine_score += 1
+
+            if player_id:
+                with next(get_db_session()) as db:
+                    record_match_result(db, player_id, result)
+
             state = "end"
 
         elif state == "end":
             play_again = end_modal.show(
                 screen, result, nickname, human_score, machine_score
             )
-            state = "play" if play_again else "start"
+            if play_again:
+                state = "play"
+            else:
+                leaderboard_modal.show(screen, nickname)
+                state = "start"

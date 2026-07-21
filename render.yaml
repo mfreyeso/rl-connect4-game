@@ -8,3 +8,11 @@ services:
         value: q_table.pkl
       - key: ENV
         value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connect4-db
+          property: connectionString
+
+databases:
+  - name: connect4-db
+    plan: free

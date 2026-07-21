@@ -17,5 +17,4 @@ typecheck:
 	uv run ty check .
 
 test:
-	export PYTHONPATH=$(PWD)
-	uv run pytest tests -v
+	uv run python -m pytest tests -v
