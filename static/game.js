@@ -31,12 +31,21 @@
     return Math.max(40, Math.min(85, Math.floor((window.innerWidth - 60) / N_COLS)));
   }
 
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   /* ---- DOM refs ---- */
   const $startScreen = document.getElementById("screen-start");
   const $gameScreen = document.getElementById("screen-game");
   const $modalOverlay = document.getElementById("modal-overlay");
+  const $leaderboardOverlay = document.getElementById("leaderboard-overlay");
   const $nicknameIn = document.getElementById("nickname-input");
   const $btnPlay = document.getElementById("btn-play");
+  const $btnLeaderboard = document.getElementById("btn-leaderboard");
+  const $btnLeaderboardClose = document.getElementById("btn-leaderboard-close");
   const $humanName = document.getElementById("human-name");
   const $humanScore = document.getElementById("human-score");
   const $machineScore = document.getElementById("machine-score");
@@ -59,6 +68,7 @@
   let locked = false;  // true while waiting for API or animation
   let gameFinished = false;
   let winHighlightTimer = null;  // animation frame ID for pulsing glow
+  let checkDebounceTimer = null;
 
   /* ============================================================
      Screen management
@@ -82,6 +92,65 @@
   }
 
   function hideModal() { $modalOverlay.classList.remove("visible"); }
+
+  /* ============================================================
+     Player Profile & Leaderboard API
+     ============================================================ */
+  async function checkPlayerProfile(name) {
+    if (!name || !name.trim()) {
+      $btnLeaderboard.style.display = "none";
+      return;
+    }
+    try {
+      const res = await fetch(`/api/players/${encodeURIComponent(name.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.can_view_leaderboard) {
+          $btnLeaderboard.style.display = "inline-block";
+        } else {
+          $btnLeaderboard.style.display = "none";
+        }
+      }
+    } catch (e) {
+      $btnLeaderboard.style.display = "none";
+    }
+  }
+
+  async function showLeaderboard(name) {
+    const user = name || nickname || "";
+    try {
+      const res = await fetch(`/api/leaderboard?username=${encodeURIComponent(user)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const $tbody = document.getElementById("leaderboard-tbody");
+      const $footer = document.getElementById("leaderboard-footer");
+      $tbody.innerHTML = "";
+      $footer.textContent = "";
+
+      data.top_players.forEach((p, idx) => {
+        const tr = document.createElement("tr");
+        const isUser = user && p.username.toLowerCase() === user.trim().toLowerCase();
+        if (isUser) tr.classList.add("user-row");
+
+        tr.innerHTML = `
+          <td>#${idx + 1}</td>
+          <td>${escapeHtml(p.username)}</td>
+          <td>${p.total_games}</td>
+          <td>${p.win_rate.toFixed(1)}%</td>
+        `;
+        $tbody.appendChild(tr);
+      });
+
+      if (data.user_rank && data.user_rank.rank > 10) {
+        $footer.textContent = `Your Rank: #${data.user_rank.rank}  |  ${data.user_rank.username} (${data.user_rank.win_rate.toFixed(1)}% Win Rate)`;
+      }
+
+      $leaderboardOverlay.classList.add("visible");
+    } catch (err) {
+      console.error("Failed to load leaderboard:", err);
+    }
+  }
 
   /* ============================================================
      Canvas rendering
@@ -150,6 +219,7 @@
       }
     }
   }
+
   /* ---- Win highlight animation ---- */
   function startWinHighlight(winningCells, state, durationMs) {
     if (winHighlightTimer) cancelAnimationFrame(winHighlightTimer);
@@ -185,13 +255,11 @@
     function frame(now) {
       const elapsed = now - t0;
       const progress = Math.min(elapsed / duration, 1);
-      // Ease-out bounce feel
       const eased = 1 - Math.pow(1 - progress, 3);
       const y = startY + (endY - startY) * eased;
 
       drawBoard();
 
-      // Animated piece
       ctx.beginPath();
       ctx.arc(col * SQ + SQ / 2, y, R, 0, Math.PI * 2);
       ctx.fillStyle = color;
@@ -200,7 +268,6 @@
       if (progress < 1) {
         requestAnimationFrame(frame);
       } else {
-        // commit piece to board data and redraw
         if (!board[targetRow]) board[targetRow] = new Array(N_COLS).fill(0);
         board[targetRow][col] = piece;
         drawBoard();
@@ -257,11 +324,9 @@
       showScreen("game");
       setupCanvas();
 
-      // If machine went first, animate its piece
       if (data.state.machine_move !== null && data.state.machine_move !== undefined) {
         const mCol = data.state.machine_move;
         const mRow = findPieceRow(board, mCol, MACHINE_PIECE);
-        // Temporarily remove the piece so we can animate it
         board[mRow][mCol] = 0;
         drawBoard();
         animateDrop(mCol, mRow, MACHINE_PIECE, () => {
@@ -279,7 +344,6 @@
     }
   }
 
-  /** Find the row where a particular piece sits in a column (topmost). */
   function findPieceRow(boardData, col, piece) {
     for (let r = N_ROWS - 1; r >= 0; r--) {
       if (boardData[r] && boardData[r][col] === piece) return r;
@@ -287,7 +351,6 @@
     return 0;
   }
 
-  /** Find the first empty row in a column (for animation target). */
   function findNextOpenRow(col) {
     for (let r = 0; r < N_ROWS; r++) {
       if (!board[r] || board[r][col] === 0) return r;
@@ -300,12 +363,11 @@
     if (col < 0 || col >= N_COLS) return;
 
     const targetRow = findNextOpenRow(col);
-    if (targetRow < 0) return; // column full
+    if (targetRow < 0) return;
 
     locked = true;
     $turnInd.textContent = "";
 
-    // Animate human piece drop locally first
     animateDrop(col, targetRow, HUMAN_PIECE, async () => {
       $turnInd.textContent = "Machine is thinking...";
       $turnInd.classList.add("thinking");
@@ -319,7 +381,6 @@
           $humanScore.textContent = state.human_score;
           $machineScore.textContent = state.machine_score;
 
-          // If human won, draw with highlight and delay modal
           if (state.result === "human_win") {
             locked = false;
             $turnInd.classList.remove("thinking");
@@ -329,11 +390,10 @@
           }
         }
 
-        // Animate machine move if it played
         if (state.machine_move !== null && state.machine_move !== undefined) {
           const mCol = state.machine_move;
           const mRow = findPieceRow(board, mCol, MACHINE_PIECE);
-          board[mRow][mCol] = 0; // temp remove for animation
+          board[mRow][mCol] = 0;
           drawBoard();
           animateDrop(mCol, mRow, MACHINE_PIECE, () => {
             $turnInd.classList.remove("thinking");
@@ -357,7 +417,6 @@
             }
           });
         } else {
-          // No machine move (game ended on human move — draw)
           $turnInd.classList.remove("thinking");
           drawBoard();
           locked = false;
@@ -381,7 +440,13 @@
 
   /* -- Start screen -- */
   $nicknameIn.addEventListener("input", () => {
-    $btnPlay.disabled = !$nicknameIn.value.trim();
+    const val = $nicknameIn.value.trim();
+    $btnPlay.disabled = !val;
+
+    if (checkDebounceTimer) clearTimeout(checkDebounceTimer);
+    checkDebounceTimer = setTimeout(() => {
+      checkPlayerProfile(val);
+    }, 300);
   });
 
   $nicknameIn.addEventListener("keydown", (e) => {
@@ -396,6 +461,16 @@
   });
   $btnAboutClose.addEventListener("click", () => {
     $aboutOverlay.classList.remove("visible");
+  });
+
+  $btnLeaderboard.addEventListener("click", () => {
+    showLeaderboard($nicknameIn.value.trim() || nickname);
+  });
+
+  $btnLeaderboardClose.addEventListener("click", () => {
+    $leaderboardOverlay.classList.remove("visible");
+    showScreen("start");
+    checkPlayerProfile($nicknameIn.value.trim() || nickname);
   });
 
   $btnPlay.addEventListener("click", () => {
@@ -430,18 +505,15 @@
 
   /* -- Modal buttons -- */
   $btnYes.addEventListener("click", () => startNewGame());
-  $btnNo.addEventListener("click", () => {
+  $btnNo.addEventListener("click", async () => {
     hideModal();
-    showScreen("start");
-    $nicknameIn.value = nickname;
-    $nicknameIn.focus();
-    $btnPlay.disabled = false;
     sessionId = null;
+    await showLeaderboard(nickname);
   });
 
   /* -- Touch support for mobile -- */
   $canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault(); // prevent page scroll while playing
+    e.preventDefault();
   }, { passive: false });
 
   $canvas.addEventListener("touchend", (e) => {

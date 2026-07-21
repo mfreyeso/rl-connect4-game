@@ -29,6 +29,65 @@ Enjoy!
 | `make train` | Train the RL agent using Q-learning |
 | `make test` | Run tests |
 | `make run` | Launch the Connect 4 game |
+| `make web` | Launch the FastAPI web server |
+
+## Solution Architecture
+
+```mermaid
+flowchart TD
+    subgraph Frontend ["User Interfaces"]
+        PygameUI["Desktop GUI (Pygame)"]
+        WebSPA["Web Frontend (HTML / JS Canvas)"]
+    end
+
+    subgraph API ["Web Service Layer (FastAPI & Uvicorn)"]
+        RateLimiter["SlowAPI Rate Limiter"]
+        Endpoints["REST API Endpoints (/api/game, /api/players, /api/leaderboard)"]
+        SessionStore["Bounded Session Store (Max 200 Sessions)"]
+    end
+
+    subgraph Core ["Engine & Reinforcement Learning"]
+        Environment["Game Engine (Connect4Environment)"]
+        QLearning["Q-Learning Policy (q_table.pkl)"]
+    end
+
+    subgraph Data ["Persistence Layer (SQLModel ORM)"]
+        Repository["SRP Repository (repository.py)"]
+        PostgresDB[("PostgreSQL Database")]
+        SQLiteDB[("SQLite Local Fallback")]
+    end
+
+    PygameUI --> Environment
+    PygameUI --> QLearning
+    PygameUI --> Repository
+
+    WebSPA --> RateLimiter
+    RateLimiter --> Endpoints
+    Endpoints --> SessionStore
+    Endpoints --> Environment
+    Endpoints --> QLearning
+    Endpoints --> Repository
+
+    Repository --> PostgresDB
+    Repository --> SQLiteDB
+```
+
+## FastAPI Limits and Safeguards
+
+To ensure system stability and memory safety when deployed on resource-constrained environments (e.g. 512 MB RAM free tier), FastAPI enforces the following operational limits:
+
+### 1. Endpoint Rate Limiting (SlowAPI)
+- `POST /api/game/new`: 10 requests / minute per IP.
+- `POST /api/game/{session_id}/move`: 30 requests / minute per IP.
+- `GET /api/game/{session_id}`: 30 requests / minute per IP.
+- Exceeding these limits returns `HTTP 429 Too Many Requests`.
+
+### 2. In-Memory Session Bounding
+- Active game sessions are stored in a bounded `OrderedDict` capped at `MAX_SESSIONS = 200`.
+- Uses FIFO (First-In, First-Out) eviction to pop oldest inactive sessions when capped, keeping RAM usage low.
+
+### 3. Leaderboard Access Control
+- `GET /api/leaderboard`: Restricted to players with at least 1 played match. Returns `HTTP 403 Forbidden` for new players prior to completing a game.
 
 ## Screenshots
 
