@@ -13,18 +13,23 @@
 </head>
 
 <body>
+  <!-- ===== Language Toggle ===== -->
+  <div class="lang-toggle-bar">
+    <button id="btn-lang-toggle" class="btn-lang-toggle">🌐 ES</button>
+  </div>
+
   <!-- ===== Start Screen ===== -->
   <div id="screen-start" class="screen active">
     <div class="start-container">
-      <h1 class="title">Connect <span class="accent">4</span></h1>
-      <p class="subtitle">Challenge the RL Agent</p>
+      <h1 class="title" data-i18n="appTitle">Connect <span class="accent">4</span></h1>
+      <p class="subtitle" data-i18n="subtitle">Challenge the RL Agent</p>
       <div class="divider"></div>
-      <label class="input-label" for="nickname-input">Enter your nickname</label>
+      <label class="input-label" for="nickname-input" data-i18n="inputLabel">Enter your nickname</label>
       <input id="nickname-input" class="nickname-input" type="text" maxlength="16" placeholder="e.g. Mario"
-        autocomplete="off" autofocus />
-      <button id="btn-play" class="btn-primary" disabled>Play</button>
-      <button id="btn-leaderboard" class="btn-leaderboard" style="display: none;">Leaderboard</button>
-      <button id="btn-about" class="btn-secondary">About</button>
+        data-i18n-placeholder="placeholder" autocomplete="off" autofocus />
+      <button id="btn-play" class="btn-primary" data-i18n="btnPlay" disabled>Play</button>
+      <button id="btn-leaderboard" class="btn-leaderboard" data-i18n="btnLeaderboard" style="display: none;">Leaderboard</button>
+      <button id="btn-about" class="btn-secondary" data-i18n="btnAbout">About</button>
     </div>
   </div>
 
@@ -35,16 +40,16 @@
         <span id="human-name" class="score-name human-color">Player</span>
         <span id="human-score" class="score-number">0</span>
       </div>
-      <span class="vs-label">vs</span>
+      <span class="vs-label" data-i18n="vs">vs</span>
       <div class="score-side score-right">
-        <span class="score-name machine-color">Machine</span>
+        <span class="score-name machine-color" data-i18n="machine">Machine</span>
         <span id="machine-score" class="score-number">0</span>
       </div>
     </header>
     <div id="board-wrapper" class="board-wrapper">
       <canvas id="board-canvas"></canvas>
     </div>
-    <p id="turn-indicator" class="turn-indicator">Your turn</p>
+    <p id="turn-indicator" class="turn-indicator" data-i18n="yourTurn">Your turn</p>
   </div>
 
   <!-- ===== End-Game Modal ===== -->
@@ -52,10 +57,10 @@
     <div class="modal-card">
       <p id="modal-result" class="modal-result">You win!</p>
       <p id="modal-scores" class="modal-scores">Player: 0 — Machine: 0</p>
-      <p class="modal-question">Play again?</p>
+      <p class="modal-question" data-i18n="playAgain">Play again?</p>
       <div class="modal-buttons">
-        <button id="btn-yes" class="btn-modal btn-yes">Yes</button>
-        <button id="btn-no" class="btn-modal btn-no">No</button>
+        <button id="btn-yes" class="btn-modal btn-yes" data-i18n="btnYes">Yes</button>
+        <button id="btn-no" class="btn-modal btn-no" data-i18n="btnNo">No</button>
       </div>
     </div>
   </div>
@@ -63,36 +68,36 @@
   <!-- ===== Leaderboard Modal ===== -->
   <div id="leaderboard-overlay" class="modal-overlay">
     <div class="modal-card leaderboard-card">
-      <h2 class="leaderboard-title">Top 10 Leaderboard</h2>
+      <h2 class="leaderboard-title" data-i18n="leaderboardTitle">Top 10 Leaderboard</h2>
       <div class="table-container">
         <table class="leaderboard-table">
           <thead>
             <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th>Matches</th>
-              <th>Win Rate</th>
+              <th data-i18n="thRank">Rank</th>
+              <th data-i18n="thPlayer">Player</th>
+              <th data-i18n="thMatches">Matches</th>
+              <th data-i18n="thWinRate">Win Rate</th>
             </tr>
           </thead>
           <tbody id="leaderboard-tbody"></tbody>
         </table>
       </div>
       <div id="leaderboard-footer" class="leaderboard-footer"></div>
-      <button id="btn-leaderboard-close" class="btn-primary btn-close">Close</button>
+      <button id="btn-leaderboard-close" class="btn-primary btn-close" data-i18n="btnClose">Close</button>
     </div>
   </div>
 
   <!-- ===== About Modal ===== -->
   <div id="about-overlay" class="modal-overlay">
     <div class="modal-card about-card">
-      <p class="about-text">
+      <p class="about-text" data-i18n="aboutText">
         A Connect 4 game built with a custom reinforcement learning agent.
         Created for the 2024 Reinforcement Learning course at Universidad de los Andes,
         this project explores the application of the Q-learning algorithm in strategic gameplay.
       </p>
-      <p class="about-author">Author: <a href="https://github.com/mfreyeso" target="_blank"
+      <p class="about-author" data-i18n="aboutAuthor">Author: <a href="https://github.com/mfreyeso" target="_blank"
           rel="noopener noreferrer">Mario Reyes Ojeda</a></p>
-      <button id="btn-about-close" class="btn-modal btn-yes">Close</button>
+      <button id="btn-about-close" class="btn-modal btn-yes" data-i18n="btnClose">Close</button>
     </div>
   </div>
 

@@ -1,6 +1,6 @@
 /* ============================================================
    Connect 4 — Browser Game Client
-   Canvas rendering + REST API integration
+   Canvas rendering + REST API integration + Multi-language i18n
    ============================================================ */
 
 (() => {
@@ -26,7 +26,83 @@
     hoverGhost: "rgba(255, 200, 50, 0.35)",
   };
 
-  /* ---- Sizing (responsive) ---- */
+  /* ---- Translations (i18n) ---- */
+  const TRANSLATIONS = {
+    en: {
+      appTitle: 'Connect <span class="accent">4</span>',
+      subtitle: "Challenge the RL Agent",
+      inputLabel: "Enter your nickname",
+      placeholder: "e.g. Mario",
+      btnPlay: "Play",
+      btnLeaderboard: "Leaderboard",
+      btnAbout: "About",
+      vs: "vs",
+      machine: "Machine",
+      yourTurn: "Your turn",
+      starting: "Starting...",
+      thinking: "Machine is thinking...",
+      errStart: "Error starting game",
+      errMove: "Error — try again",
+      humanWin: "{name} wins!",
+      machineWin: "Machine wins!",
+      draw: "It's a draw!",
+      playAgain: "Play again?",
+      btnYes: "Yes",
+      btnNo: "No",
+      leaderboardTitle: "Top 10 Leaderboard",
+      thRank: "Rank",
+      thPlayer: "Player",
+      thMatches: "Matches",
+      thWinRate: "Win Rate",
+      userRankFooter: "Your Rank: #{rank}  |  {name} ({winRate}% Win Rate)",
+      btnClose: "Close",
+      aboutText:
+        "A Connect 4 game built with a custom reinforcement learning agent. Created for the 2024 Reinforcement Learning course at Universidad de los Andes, this project explores the application of the Q-learning algorithm in strategic gameplay.",
+      aboutAuthor:
+        'Author: <a href="https://github.com/mfreyeso" target="_blank" rel="noopener noreferrer">Mario Reyes Ojeda</a>',
+      langBtn: "🌐 ES",
+    },
+    es: {
+      appTitle: 'Conecta <span class="accent">4</span>',
+      subtitle: "Desafía al agente de RL",
+      inputLabel: "Escribe tu apodo",
+      placeholder: "ej. Mario",
+      btnPlay: "Jugar",
+      btnLeaderboard: "Tabla de Clasificación",
+      btnAbout: "Acerca de",
+      vs: "vs",
+      machine: "Máquina",
+      yourTurn: "Tu turno",
+      starting: "Iniciando...",
+      thinking: "La máquina está pensando...",
+      errStart: "Error al iniciar el juego",
+      errMove: "Error — intenta de nuevo",
+      humanWin: "¡{name} ganó!",
+      machineWin: "¡La máquina ganó!",
+      draw: "¡Es un empate!",
+      playAgain: "¿Jugar de nuevo?",
+      btnYes: "Sí",
+      btnNo: "No",
+      leaderboardTitle: "Tabla de Clasificación - Top 10",
+      thRank: "Posición",
+      thPlayer: "Jugador",
+      thMatches: "Partidas",
+      thWinRate: "% Victorias",
+      userRankFooter: "Tu Posición: #{rank}  |  {name} ({winRate}% Victorias)",
+      btnClose: "Cerrar",
+      aboutText:
+        "Un juego de Conecta 4 creado con un agente de aprendizaje por refuerzo personalizado. Creado para el curso de Aprendizaje por Refuerzo de 2024 en la Universidad de los Andes, este proyecto explora la aplicación del algoritmo Q-learning en juegos de estrategia.",
+      aboutAuthor:
+        'Autor: <a href="https://github.com/mfreyeso" target="_blank" rel="noopener noreferrer">Mario Reyes Ojeda</a>',
+      langBtn: "🌐 EN",
+    },
+  };
+
+  /* ---- Detect Browser Language ---- */
+  const userLang = (navigator.language || (navigator.languages && navigator.languages[0]) || "en").toLowerCase();
+  let currentLang = userLang.startsWith("es") ? "es" : "en";
+
+  /* ---- Sizing & Utils ---- */
   function squareSize() {
     return Math.max(40, Math.min(85, Math.floor((window.innerWidth - 60) / N_COLS)));
   }
@@ -46,6 +122,7 @@
   const $btnPlay = document.getElementById("btn-play");
   const $btnLeaderboard = document.getElementById("btn-leaderboard");
   const $btnLeaderboardClose = document.getElementById("btn-leaderboard-close");
+  const $btnLangToggle = document.getElementById("btn-lang-toggle");
   const $humanName = document.getElementById("human-name");
   const $humanScore = document.getElementById("human-score");
   const $machineScore = document.getElementById("machine-score");
@@ -69,6 +146,49 @@
   let gameFinished = false;
   let winHighlightTimer = null;  // animation frame ID for pulsing glow
   let checkDebounceTimer = null;
+  let lastModalResult = null;
+  let lastHumanScore = 0;
+  let lastMachineScore = 0;
+
+  /* ============================================================
+     Language / i18n Controller
+     ============================================================ */
+  function setLanguage(lang) {
+    if (!TRANSLATIONS[lang]) return;
+    currentLang = lang;
+    document.documentElement.lang = lang;
+
+    const t = TRANSLATIONS[lang];
+
+    // Update elements with data-i18n
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (t[key] !== undefined) {
+        el.innerHTML = t[key];
+      }
+    });
+
+    // Update input placeholders
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      if (t[key] !== undefined) {
+        el.placeholder = t[key];
+      }
+    });
+
+    // Update language toggle button
+    if ($btnLangToggle) {
+      $btnLangToggle.textContent = t.langBtn;
+    }
+
+    // Refresh dynamic texts if currently visible
+    if ($modalOverlay.classList.contains("visible") && lastModalResult) {
+      showModal(lastModalResult, lastHumanScore, lastMachineScore);
+    }
+    if (!$turnInd.classList.contains("thinking") && !gameFinished && $gameScreen.classList.contains("active")) {
+      $turnInd.textContent = t.yourTurn;
+    }
+  }
 
   /* ============================================================
      Screen management
@@ -80,14 +200,27 @@
   }
 
   function showModal(result, humanScore, machineScore) {
+    lastModalResult = result;
+    lastHumanScore = humanScore;
+    lastMachineScore = machineScore;
+
+    const t = TRANSLATIONS[currentLang];
     let msg, cls;
-    if (result === "human_win") { msg = `${nickname} wins!`; cls = "win"; }
-    else if (result === "machine_win") { msg = "Machine wins!"; cls = "lose"; }
-    else { msg = "It's a draw!"; cls = "draw"; }
+
+    if (result === "human_win") {
+      msg = t.humanWin.replace("{name}", nickname);
+      cls = "win";
+    } else if (result === "machine_win") {
+      msg = t.machineWin;
+      cls = "lose";
+    } else {
+      msg = t.draw;
+      cls = "draw";
+    }
 
     $modalResult.textContent = msg;
     $modalResult.className = "modal-result " + cls;
-    $modalScores.textContent = `${nickname}: ${humanScore}  —  Machine: ${machineScore}`;
+    $modalScores.textContent = `${nickname}: ${humanScore}  —  ${t.machine}: ${machineScore}`;
     $modalOverlay.classList.add("visible");
   }
 
@@ -118,6 +251,7 @@
 
   async function showLeaderboard(name) {
     const user = name || nickname || "";
+    const t = TRANSLATIONS[currentLang];
     try {
       const res = await fetch(`/api/leaderboard?username=${encodeURIComponent(user)}`);
       if (!res.ok) return;
@@ -143,7 +277,10 @@
       });
 
       if (data.user_rank && data.user_rank.rank > 10) {
-        $footer.textContent = `Your Rank: #${data.user_rank.rank}  |  ${data.user_rank.username} (${data.user_rank.win_rate.toFixed(1)}% Win Rate)`;
+        $footer.textContent = t.userRankFooter
+          .replace("{rank}", data.user_rank.rank)
+          .replace("{name}", data.user_rank.username)
+          .replace("{winRate}", data.user_rank.win_rate.toFixed(1));
       }
 
       $leaderboardOverlay.classList.add("visible");
@@ -166,18 +303,15 @@
     const SQ = squareSize();
     const R = SQ / 2 - 5;
 
-    // Hover row background
     ctx.fillStyle = COLORS.board;
     ctx.fillRect(0, 0, N_COLS * SQ, SQ);
 
-    // Hover ghost piece
     if (hoverCol >= 0 && !locked && !gameFinished) {
       ctx.beginPath();
       ctx.arc(hoverCol * SQ + SQ / 2, SQ / 2, R, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.hoverGhost;
       ctx.fill();
 
-      // Solid preview piece
       ctx.beginPath();
       ctx.arc(hoverCol * SQ + SQ / 2, SQ / 2, R, 0, Math.PI * 2);
       ctx.fillStyle = COLORS.player2;
@@ -186,17 +320,14 @@
       ctx.globalAlpha = 1;
     }
 
-    // Board grid
     for (let r = 0; r < N_ROWS; r++) {
       for (let c = 0; c < N_COLS; c++) {
         const x = c * SQ;
-        const y = (N_ROWS - r) * SQ;  // row 0 = bottom → screen bottom
+        const y = (N_ROWS - r) * SQ;
 
-        // Board square
         ctx.fillStyle = COLORS.board;
         ctx.fillRect(x, y, SQ, SQ);
 
-        // Cell circle
         ctx.beginPath();
         ctx.arc(x + SQ / 2, y + SQ / 2, R, 0, Math.PI * 2);
 
@@ -205,7 +336,6 @@
         else if (piece === HUMAN_PIECE) ctx.fillStyle = COLORS.player2;
         else ctx.fillStyle = COLORS.cellEmpty;
 
-        // Highlight winning cells with pulsing glow
         if (highlightCells && highlightCells.some(([hr, hc]) => hr === r && hc === c)) {
           const pulse = highlightPhase !== undefined
             ? 22 + 16 * Math.sin(highlightPhase)
@@ -220,14 +350,13 @@
     }
   }
 
-  /* ---- Win highlight animation ---- */
   function startWinHighlight(winningCells, state, durationMs) {
     if (winHighlightTimer) cancelAnimationFrame(winHighlightTimer);
     const t0 = performance.now();
 
     function pulse(now) {
       const elapsed = now - t0;
-      const phase = (elapsed / 200);  // controls pulse speed
+      const phase = (elapsed / 200);
       drawBoard(winningCells, phase);
 
       if (elapsed < durationMs) {
@@ -241,15 +370,14 @@
     winHighlightTimer = requestAnimationFrame(pulse);
   }
 
-  /* ---- Drop animation ---- */
   function animateDrop(col, targetRow, piece, callback) {
     const SQ = squareSize();
     const R = SQ / 2 - 5;
     const color = piece === MACHINE_PIECE ? COLORS.player1 : COLORS.player2;
 
-    const startY = SQ / 2;                                 // top of board
-    const endY = (N_ROWS - targetRow) * SQ + SQ / 2;     // destination
-    const duration = 250 + (N_ROWS - targetRow) * 35;       // ms
+    const startY = SQ / 2;
+    const endY = (N_ROWS - targetRow) * SQ + SQ / 2;
+    const duration = 250 + (N_ROWS - targetRow) * 35;
     const t0 = performance.now();
 
     function frame(now) {
@@ -304,13 +432,13 @@
   /* ============================================================
      Game flow
      ============================================================ */
-
   async function startNewGame() {
+    const t = TRANSLATIONS[currentLang];
     hideModal();
     if (winHighlightTimer) { cancelAnimationFrame(winHighlightTimer); winHighlightTimer = null; }
     gameFinished = false;
     locked = true;
-    $turnInd.textContent = "Starting...";
+    $turnInd.textContent = t.starting;
     $turnInd.classList.remove("thinking");
 
     try {
@@ -331,15 +459,15 @@
         drawBoard();
         animateDrop(mCol, mRow, MACHINE_PIECE, () => {
           locked = false;
-          $turnInd.textContent = "Your turn";
+          $turnInd.textContent = t.yourTurn;
         });
       } else {
         locked = false;
-        $turnInd.textContent = "Your turn";
+        $turnInd.textContent = t.yourTurn;
       }
     } catch (err) {
       console.error("Failed to start game:", err);
-      $turnInd.textContent = "Error starting game";
+      $turnInd.textContent = t.errStart;
       locked = false;
     }
   }
@@ -362,6 +490,7 @@
     if (locked || gameFinished) return;
     if (col < 0 || col >= N_COLS) return;
 
+    const t = TRANSLATIONS[currentLang];
     const targetRow = findNextOpenRow(col);
     if (targetRow < 0) return;
 
@@ -369,7 +498,7 @@
     $turnInd.textContent = "";
 
     animateDrop(col, targetRow, HUMAN_PIECE, async () => {
-      $turnInd.textContent = "Machine is thinking...";
+      $turnInd.textContent = t.thinking;
       $turnInd.classList.add("thinking");
 
       try {
@@ -412,7 +541,7 @@
               }
             } else {
               locked = false;
-              $turnInd.textContent = "Your turn";
+              $turnInd.textContent = t.yourTurn;
               drawBoard();
             }
           });
@@ -427,7 +556,7 @@
         }
       } catch (err) {
         console.error("Move failed:", err);
-        $turnInd.textContent = "Error — try again";
+        $turnInd.textContent = t.errMove;
         $turnInd.classList.remove("thinking");
         locked = false;
       }
@@ -437,6 +566,14 @@
   /* ============================================================
      Event listeners
      ============================================================ */
+
+  /* -- Language toggle -- */
+  if ($btnLangToggle) {
+    $btnLangToggle.addEventListener("click", () => {
+      const nextLang = currentLang === "en" ? "es" : "en";
+      setLanguage(nextLang);
+    });
+  }
 
   /* -- Start screen -- */
   $nicknameIn.addEventListener("input", () => {
@@ -531,7 +668,8 @@
     if ($gameScreen.classList.contains("active")) setupCanvas();
   });
 
-  /* ---- Init ---- */
+  /* ---- Init language & screen ---- */
+  setLanguage(currentLang);
   showScreen("start");
 
 })();

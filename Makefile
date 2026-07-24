@@ -1,4 +1,4 @@
-.PHONY: setup run train typecheck test web
+.PHONY: setup run train typecheck test web db-up db-down
 
 setup:
 	uv venv
@@ -8,7 +8,14 @@ run:
 	uv run python -m connect4.main
 
 web:
-	uv run uvicorn connect4.api:app --reload --port 8000
+	docker compose up -d db
+	DATABASE_URL="postgresql://connect4_user:connect4_pass@localhost:5433/connect4_db" uv run uvicorn connect4.api:app --reload --port 8000
+
+db-up:
+	docker compose up -d db
+
+db-down:
+	docker compose down
 
 train:
 	uv run python -m connect4.train --episodes $(episodes)
