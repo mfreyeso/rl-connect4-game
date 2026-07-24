@@ -292,10 +292,23 @@ def get_state(request: Request, session_id: str):
 @app.get("/api/players/{username}", response_model=PlayerRead)
 def get_player_profile(username: str):
     """Get player stats, past victories, rank, and leaderboard access permission."""
+    clean_username = username.strip()
     with next(get_db_session()) as db:
-        player = get_or_create_player(db, username)
-        rank = get_player_rank(db, username)
-        can_view = can_view_leaderboard(db, username)
+        player = get_player_by_username(db, clean_username)
+        if not player:
+            return PlayerRead(
+                id=0,
+                username=clean_username,
+                victories=0,
+                losses=0,
+                draws=0,
+                total_games=0,
+                win_rate=0.0,
+                rank=None,
+                can_view_leaderboard=False,
+            )
+        rank = get_player_rank(db, clean_username)
+        can_view = can_view_leaderboard(db, clean_username)
         return PlayerRead(
             id=player.id,  # type: ignore
             username=player.username,

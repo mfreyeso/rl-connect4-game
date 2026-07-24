@@ -70,9 +70,10 @@ def sync_session_stats(
 
 
 def get_top_players(session: Session, limit: int = 10) -> list[Player]:
-    """Return top N players ordered primarily by victories descending."""
+    """Return top N players ordered primarily by victories descending (played >= 1 match)."""
     statement = (
         select(Player)
+        .where((col(Player.victories) + col(Player.losses) + col(Player.draws)) > 0)
         .order_by(col(Player.victories).desc(), col(Player.updated_at).asc())
         .limit(limit)
     )
@@ -88,9 +89,9 @@ def get_player_rank(session: Session, username: str) -> int | None:
     # Count players with strictly more victories or same victories with earlier update
     all_players = list(
         session.exec(
-            select(Player).order_by(
-                col(Player.victories).desc(), col(Player.updated_at).asc()
-            )
+            select(Player)
+            .where((col(Player.victories) + col(Player.losses) + col(Player.draws)) > 0)
+            .order_by(col(Player.victories).desc(), col(Player.updated_at).asc())
         ).all()
     )
 

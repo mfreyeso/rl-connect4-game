@@ -67,7 +67,7 @@ def test_leaderboard_ranking_and_rank_calc(db_session: Session):
     record_match_result(db_session, p2.id, "human_win")  # 1 win
 
     top = get_top_players(db_session, limit=10)
-    assert len(top) == 3
+    assert len(top) == 2  # Player3 has 0 games played and is excluded
     assert top[0].username == "Player1"
     assert top[1].username == "Player2"
 
@@ -128,3 +128,24 @@ def test_api_endpoints():
     lb_data = lb_unlocked.json()
     assert len(lb_data["top_players"]) >= 1
     assert lb_data["user_rank"]["username"] == user_name
+
+
+def test_get_player_profile_does_not_create_db_record():
+    import uuid
+
+    client = TestClient(app)
+    unplayed_user = f"Unplayed_{uuid.uuid4().hex[:8]}"
+
+    # Querying non-existent user profile should be read-only
+    res = client.get(f"/api/players/{unplayed_user}")
+    assert res.status_code == 200
+    assert res.json()["username"] == unplayed_user
+    assert res.json()["can_view_leaderboard"] is False
+
+    # Ensure this user was not added to the DB / leaderboard
+    from connect4.db.engine import get_db_session
+    from connect4.db.repository import get_player_by_username
+
+    with next(get_db_session()) as db:
+        p = get_player_by_username(db, unplayed_user)
+        assert p is None
