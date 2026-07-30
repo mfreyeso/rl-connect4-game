@@ -36,9 +36,9 @@ from connect4.db.repository import (
 _Q_TABLE_PATH = os.environ.get("Q_TABLE_PATH", "q_table.pkl")
 try:
     _Q_TABLE: dict = load_q_table(_Q_TABLE_PATH)
-except FileNotFoundError:
+except (FileNotFoundError, Exception) as exc:
     _Q_TABLE = {}
-    print(f"⚠️  Q-table not found at {_Q_TABLE_PATH} — agent will play randomly.")
+    print(f"⚠️  Q-table could not be loaded from {_Q_TABLE_PATH} ({exc}) — agent will play randomly.")
 
 # Initialize database schema
 init_db()

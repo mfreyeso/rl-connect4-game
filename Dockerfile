@@ -32,4 +32,4 @@ ENV UV_CACHE_DIR=/tmp/uv-cache
 EXPOSE 8000
 
 # --no-sync prevents uv from trying to re-install packages as appuser
-CMD ["uv", "run", "--no-sync", "uvicorn", "connect4.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uv run --no-sync uvicorn connect4.api:app --host 0.0.0.0 --port ${PORT:-8000}"]

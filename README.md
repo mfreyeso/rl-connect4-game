@@ -97,6 +97,23 @@ To ensure system stability and memory safety when deployed on resource-constrain
 <img src="images/modal_screen.png" alt="Modal Screen" width="400">
 <!-- markdownlint-enable MD033 -->
 
+## Deployment to Google Cloud Platform (GCP)
+
+You can deploy the complete Connect 4 web app and PostgreSQL database to **GCP Compute Engine (e2-micro Always Free tier in us-central1)** at **$0 monthly cost**.
+
+### 1. Provision GCP VM & Firewalls
+Run the setup script:
+```bash
+./scripts/deploy_vm_all_in_one.sh <YOUR_GCP_PROJECT_ID> us-central1-a
+```
+
+### 2. Stream Database Migration from Render to GCP
+Stream your data directly from Render to GCP using the single-command migration script:
+```bash
+./scripts/migrate_render_to_gcp.sh "<RENDER_DATABASE_URL>" "postgresql://connect4_user:connect4_pass@<VM_IP>:5432/connect4_db"
+```
+
 ## Author
 
     - Mario Reyes Ojeda
+
