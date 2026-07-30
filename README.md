@@ -9,7 +9,7 @@ I plan to use a neural network to approximate the Q-values in the next release.
 
 ## First and Foremost, Play :D
 
-Go to https://rl-connect4-game.onrender.com/
+Go to https://connect4-game-741459842806.us-central1.run.app
 You could see a cold starter, it's because is running on a free tier.
 Enjoy!
 
@@ -97,20 +97,19 @@ To ensure system stability and memory safety when deployed on resource-constrain
 <img src="images/modal_screen.png" alt="Modal Screen" width="400">
 <!-- markdownlint-enable MD033 -->
 
-## Deployment to Google Cloud Platform (GCP)
+## Deployment to Google Cloud Platform (GCP Cloud Run)
 
-You can deploy the complete Connect 4 web app and PostgreSQL database to **GCP Compute Engine (e2-micro Always Free tier in us-central1)** at **$0 monthly cost**.
+You can deploy the Connect 4 web application to **GCP Cloud Run** and connect it to your existing **Render PostgreSQL database**.
 
-### 1. Provision GCP VM & Firewalls
-Run the setup script:
+### Single-Command Cloud Run Deployment
+
+Run the automated Cloud Run deployment script:
 ```bash
-./scripts/deploy_vm_all_in_one.sh <YOUR_GCP_PROJECT_ID> us-central1-a
+./scripts/deploy_cloud_run.sh <YOUR_GCP_PROJECT_ID> us-central1 "<RENDER_DATABASE_URL>"
 ```
-
-### 2. Stream Database Migration from Render to GCP
-Stream your data directly from Render to GCP using the single-command migration script:
+Or via Makefile:
 ```bash
-./scripts/migrate_render_to_gcp.sh "<RENDER_DATABASE_URL>" "postgresql://connect4_user:connect4_pass@<VM_IP>:5432/connect4_db"
+PROJECT_ID="<YOUR_GCP_PROJECT_ID>" REGION="us-central1" DATABASE_URL="<RENDER_DATABASE_URL>" make deploy-cloudrun
 ```
 
 ## Author

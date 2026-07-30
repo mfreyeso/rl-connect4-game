@@ -1,4 +1,4 @@
-.PHONY: setup run train typecheck test web db-up db-down
+.PHONY: setup run train typecheck test web db-up db-down deploy-cloudrun
 
 setup:
 	uv venv
@@ -25,3 +25,7 @@ typecheck:
 
 test:
 	uv run python -m pytest tests -v
+
+deploy-cloudrun:
+	./scripts/deploy_cloud_run.sh "$(PROJECT_ID)" "$(REGION)" "$(DATABASE_URL)"
+
