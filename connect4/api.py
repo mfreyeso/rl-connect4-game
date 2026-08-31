@@ -7,28 +7,20 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, HTTPException, Request, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from connect4.environment import Connect4Environment
 from connect4.train import load_q_table
-from connect4.db.engine import init_db, get_db_session
+from connect4.db.engine import init_db
+from connect4.db import get_repository, BasePlayerRepository
 from connect4.db.models import PlayerRead, LeaderboardResponse, LeaderboardEntry
-from connect4.db.repository import (
-    get_or_create_player,
-    get_player_by_username,
-    record_match_result,
-    sync_session_stats,
-    get_top_players,
-    get_player_rank,
-    can_view_leaderboard,
-)
 
 # ---------------------------------------------------------------------------
 # Startup & Q-table loading
@@ -38,9 +30,11 @@ try:
     _Q_TABLE: dict = load_q_table(_Q_TABLE_PATH)
 except (FileNotFoundError, Exception) as exc:
     _Q_TABLE = {}
-    print(f"⚠️  Q-table could not be loaded from {_Q_TABLE_PATH} ({exc}) — agent will play randomly.")
+    print(
+        f"⚠️  Q-table could not be loaded from {_Q_TABLE_PATH} ({exc}) — agent will play randomly."
+    )
 
-# Initialize database schema
+# Initialize database schema for SQLModel backend if used
 init_db()
 
 # ---------------------------------------------------------------------------
@@ -68,7 +62,9 @@ _sessions: OrderedDict[str, GameSession] = OrderedDict()
 
 
 class NewGameRequest(BaseModel):
-    nickname: str = "Player"
+    nickname: str = Field(
+        default="Player", min_length=1, max_length=30, pattern=r"^[\w\s-]+$"
+    )
     session_id: str | None = None  # reuse session to keep scores
 
 
@@ -77,9 +73,9 @@ class MoveRequest(BaseModel):
 
 
 class SyncSessionRequest(BaseModel):
-    wins: int = 0
-    losses: int = 0
-    draws: int = 0
+    wins: int = Field(default=0, ge=0)
+    losses: int = Field(default=0, ge=0)
+    draws: int = Field(default=0, ge=0)
 
 
 class BoardState(BaseModel):
@@ -176,24 +172,24 @@ app.add_middleware(
 
 @app.post("/api/game/new", response_model=NewGameResponse)
 @limiter.limit("10/minute")
-def new_game(request: Request, req: NewGameRequest):
+def new_game(
+    request: Request,
+    req: NewGameRequest,
+    repo: BasePlayerRepository = Depends(get_repository),
+):
     """Start a new game. Ensures player profile exists in DB."""
     nickname = req.nickname.strip() or "Player"
-
-    with next(get_db_session()) as db:
-        db_player = get_or_create_player(db, nickname)
-        pid = db_player.id
+    repo.get_or_create(nickname)
 
     if req.session_id and req.session_id in _sessions:
         session = _sessions[req.session_id]
         session.env = Connect4Environment()
         session.nickname = nickname
-        session.player_id = pid
         sid = req.session_id
         _sessions.move_to_end(sid)
     else:
         sid = uuid.uuid4().hex
-        session = GameSession(nickname=nickname, player_id=pid)
+        session = GameSession(nickname=nickname)
         _sessions[sid] = session
 
         while len(_sessions) > MAX_SESSIONS:
@@ -216,7 +212,12 @@ def new_game(request: Request, req: NewGameRequest):
 
 @app.post("/api/game/{session_id}/move", response_model=BoardState)
 @limiter.limit("30/minute")
-def make_move(request: Request, session_id: str, req: MoveRequest):
+def make_move(
+    request: Request,
+    session_id: str,
+    req: MoveRequest,
+    repo: BasePlayerRepository = Depends(get_repository),
+):
     """Human places a piece, then machine responds. Persists results on match finish."""
     session = _sessions.get(session_id)
     if not session:
@@ -232,9 +233,8 @@ def make_move(request: Request, session_id: str, req: MoveRequest):
 
     # Helper to persist match outcome
     def _persist_result(result_str: str):
-        if session.player_id:
-            with next(get_db_session()) as db:
-                record_match_result(db, session.player_id, result_str)
+        if session.nickname:
+            repo.record_match_result(session.nickname, result_str)
 
     # --- Human move ---
     row = env.get_next_open_row(col)
@@ -290,110 +290,116 @@ def get_state(request: Request, session_id: str):
 
 
 @app.get("/api/players/{username}", response_model=PlayerRead)
-def get_player_profile(username: str):
+def get_player_profile(
+    username: str,
+    repo: BasePlayerRepository = Depends(get_repository),
+):
     """Get player stats, past victories, rank, and leaderboard access permission."""
     clean_username = username.strip()
-    with next(get_db_session()) as db:
-        player = get_player_by_username(db, clean_username)
-        if not player:
-            return PlayerRead(
-                id=0,
-                username=clean_username,
-                victories=0,
-                losses=0,
-                draws=0,
-                total_games=0,
-                win_rate=0.0,
-                rank=None,
-                can_view_leaderboard=False,
-            )
-        rank = get_player_rank(db, clean_username)
-        can_view = can_view_leaderboard(db, clean_username)
+    player = repo.get_by_username(clean_username)
+    if not player:
         return PlayerRead(
-            id=player.id,  # type: ignore
-            username=player.username,
-            victories=player.victories,
-            losses=player.losses,
-            draws=player.draws,
-            total_games=player.total_games,
-            win_rate=player.win_rate,
-            rank=rank,
-            can_view_leaderboard=can_view,
+            id=0,
+            username=clean_username,
+            victories=0,
+            losses=0,
+            draws=0,
+            total_games=0,
+            win_rate=0.0,
+            rank=None,
+            can_view_leaderboard=False,
         )
+    can_view = player.total_games >= 1
+    rank = repo.get_player_rank(clean_username) if can_view else None
+    return PlayerRead(
+        id=1,
+        username=player.username,
+        victories=player.victories,
+        losses=player.losses,
+        draws=player.draws,
+        total_games=player.total_games,
+        win_rate=player.win_rate,
+        rank=rank,
+        can_view_leaderboard=can_view,
+    )
 
 
 @app.post("/api/players/{username}/sync_session", response_model=PlayerRead)
-def sync_player_session(username: str, req: SyncSessionRequest):
+def sync_player_session(
+    username: str,
+    req: SyncSessionRequest,
+    repo: BasePlayerRepository = Depends(get_repository),
+):
     """Aggregate session wins/losses/draws into player history."""
-    with next(get_db_session()) as db:
-        player = get_or_create_player(db, username)
-        if player.id:
-            player = (
-                sync_session_stats(db, player.id, req.wins, req.losses, req.draws)
-                or player
-            )
-        rank = get_player_rank(db, username)
-        can_view = can_view_leaderboard(db, username)
-        return PlayerRead(
-            id=player.id,  # type: ignore
-            username=player.username,
-            victories=player.victories,
-            losses=player.losses,
-            draws=player.draws,
-            total_games=player.total_games,
-            win_rate=player.win_rate,
-            rank=rank,
-            can_view_leaderboard=can_view,
-        )
+    clean_username = username.strip()
+    player = repo.sync_session_stats(clean_username, req.wins, req.losses, req.draws)
+    if not player:
+        player = repo.get_or_create(clean_username)
+
+    can_view = player.total_games >= 1
+    rank = repo.get_player_rank(clean_username) if can_view else None
+    return PlayerRead(
+        id=1,
+        username=player.username,
+        victories=player.victories,
+        losses=player.losses,
+        draws=player.draws,
+        total_games=player.total_games,
+        win_rate=player.win_rate,
+        rank=rank,
+        can_view_leaderboard=can_view,
+    )
 
 
 @app.get("/api/leaderboard", response_model=LeaderboardResponse)
-def get_leaderboard(username: str | None = Query(default=None)):
+def get_leaderboard(
+    username: str | None = Query(default=None),
+    repo: BasePlayerRepository = Depends(get_repository),
+):
     """Return top 10 leaderboard. Returns 403 if username is a new player with 0 matches."""
-    with next(get_db_session()) as db:
-        user_rank_entry: LeaderboardEntry | None = None
-        user_can_view = True
+    user_rank_entry: LeaderboardEntry | None = None
+    user_can_view = True
 
-        if username:
-            user_can_view = can_view_leaderboard(db, username)
-            if not user_can_view:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Leaderboard is locked. Play at least 1 match to unlock rankings!",
-                )
-            p = get_player_by_username(db, username)
-            if p:
-                r = get_player_rank(db, username)
-                if r is not None:
-                    user_rank_entry = LeaderboardEntry(
-                        rank=r,
-                        username=p.username,
-                        victories=p.victories,
-                        losses=p.losses,
-                        draws=p.draws,
-                        total_games=p.total_games,
-                        win_rate=p.win_rate,
-                    )
-
-        top_players = get_top_players(db, limit=10)
-        entries = [
-            LeaderboardEntry(
-                rank=idx,
-                username=p.username,
-                victories=p.victories,
-                losses=p.losses,
-                draws=p.draws,
-                total_games=p.total_games,
-                win_rate=p.win_rate,
+    if username:
+        p = repo.get_by_username(username)
+        user_can_view = p is not None and p.total_games >= 1
+        if not user_can_view:
+            raise HTTPException(
+                status_code=403,
+                detail="Leaderboard is locked. Play at least 1 match to unlock rankings!",
             )
-            for idx, p in enumerate(top_players, start=1)
-        ]
+        if p:
+            r = repo.get_player_rank(username)
+            if r is not None:
+                user_rank_entry = LeaderboardEntry(
+                    rank=r,
+                    username=p.username,
+                    victories=p.victories,
+                    losses=p.losses,
+                    draws=p.draws,
+                    total_games=p.total_games,
+                    win_rate=p.win_rate,
+                )
 
-        return LeaderboardResponse(
-            top_players=entries,
-            user_rank=user_rank_entry,
-            can_view_leaderboard=user_can_view,
+    top_players = repo.get_top_players(limit=10)
+    entries = [
+        LeaderboardEntry(
+            rank=idx,
+            username=p.username,
+            victories=p.victories,
+            losses=p.losses,
+            draws=p.draws,
+            total_games=p.total_games,
+            win_rate=p.win_rate,
         )
+        for idx, p in enumerate(top_players, start=1)
+    ]
+
+    return LeaderboardResponse(
+        top_players=entries,
+        user_rank=user_rank_entry,
+        can_view_leaderboard=user_can_view,
+    )
 
 
 # ---------------------------------------------------------------------------

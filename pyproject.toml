@@ -15,6 +15,7 @@ dependencies = [
     "slowapi>=0.1.9",
     "sqlmodel>=0.0.22",
     "psycopg2-binary>=2.9.10",
+    "google-cloud-datastore>=2.19.0",
 ]
 
 [dependency-groups]
@@ -31,3 +32,4 @@ possibly-unresolved-reference = "warn"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]

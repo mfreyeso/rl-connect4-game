@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from typing import Optional
+from pydantic import BaseModel
 from sqlmodel import Field, SQLModel
 
 
@@ -43,10 +44,10 @@ class Match(SQLModel, table=True):
     )
 
 
-# --- API Data Transfer Schemas ---
+# --- API Data Transfer Schemas (pure Pydantic, not DB tables) ---
 
 
-class PlayerRead(SQLModel):
+class PlayerRead(BaseModel):
     id: int
     username: str
     victories: int
@@ -58,7 +59,7 @@ class PlayerRead(SQLModel):
     can_view_leaderboard: bool = False
 
 
-class LeaderboardEntry(SQLModel):
+class LeaderboardEntry(BaseModel):
     rank: int
     username: str
     victories: int
@@ -68,7 +69,7 @@ class LeaderboardEntry(SQLModel):
     win_rate: float
 
 
-class LeaderboardResponse(SQLModel):
+class LeaderboardResponse(BaseModel):
     top_players: list[LeaderboardEntry]
     user_rank: Optional[LeaderboardEntry] = None
     can_view_leaderboard: bool = True

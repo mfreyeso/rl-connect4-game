@@ -1,0 +1,8 @@
+indexes:
+
+- kind: Player
+  properties:
+  - name: victories
+    direction: desc
+  - name: updated_at
+    direction: asc

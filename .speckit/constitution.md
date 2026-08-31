@@ -11,7 +11,7 @@ The project evolves from a local single-player (Human vs. AI) experience into a 
 - **Dependency & Package Manager**: `uv` (`pyproject.toml` with `uv.lock`).
 - **Game Engine & Rendering**: `pygame` >= 2.6.1 for desktop UI; modular board & environment logic decoupled from rendering.
 - **Web API & Server**: `fastapi` >= 0.115.0 with `uvicorn[standard]` >= 0.34.0, including `slowapi` for rate limiting.
-- **Persistence & Database**: `PostgreSQL` for production/development persistence (ORM via SQLAlchemy/SQLModel, asyncpg driver, and Alembic for schema migrations).
+- **Persistence & Database**: `GCP Datastore` (Google Cloud Datastore NoSQL) as primary cloud persistence backend; `SQLModel` (PostgreSQL/SQLite) and thread-safe `In-Memory` stores supported via Abstract Repository injection (`DB_BACKEND`).
 - **Tooling & Code Quality**:
   - Formatter & Linter: `black` (24.x), `pre-commit`.
   - Type Checker: `ty` / `mypy`.
@@ -28,9 +28,9 @@ The project evolves from a local single-player (Human vs. AI) experience into a 
 2. **Reinforcement Learning (`connect4.qlearning` & AI module)**:
    - Houses Q-learning agent logic, state representation hash/serialization, action selection policies ($\epsilon$-greedy), and Q-table/model loading.
    - Scalable to deep neural network policy models.
-3. **Persistence & Data Layer (`connect4.db` / `models`)**:
-   - PostgreSQL schema for Users, Matches, Move History, Player Stats, and RL Agent Snapshots.
-   - Data Access Objects (DAOs) / Repository pattern to decouple FastAPI endpoints from direct database operations.
+3. **Persistence & Data Layer (`connect4.db`)**:
+   - Abstract Repository interface (`BasePlayerRepository`) with dependency injection (`get_repository()`).
+   - Implementations: GCP Datastore (`DatastorePlayerRepository`), SQLModel PostgreSQL/SQLite (`SQLModelPlayerRepository`), and fast testing (`InMemoryPlayerRepository`).
 4. **Web & Real-Time API (`connect4.api`)**:
    - RESTful endpoints for authentication, player stats, and historical match retrieval.
    - WebSocket endpoints for real-time multiplayer move broadcasting and match synchronization.

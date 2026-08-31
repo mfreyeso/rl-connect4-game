@@ -27,13 +27,7 @@ from connect4.constants import (
     WINDOW_TITLE,
 )
 from connect4.environment import Connect4Environment
-from connect4.db.engine import get_db_session
-from connect4.db.repository import (
-    get_player_by_username,
-    get_top_players,
-    get_player_rank,
-    can_view_leaderboard,
-)
+from connect4.db import get_repository
 
 # ---------------------------------------------------------------------------
 # Fonts
@@ -63,10 +57,10 @@ class LeaderboardModal:
     def show(self, screen: pygame.Surface, username: str | None = None):
         clock = pygame.time.Clock()
 
-        with next(get_db_session()) as db:
-            top_players = get_top_players(db, limit=10)
-            user_rank = get_player_rank(db, username) if username else None
-            user_player = get_player_by_username(db, username) if username else None
+        repo = get_repository()
+        top_players = repo.get_top_players(limit=10)
+        user_rank = repo.get_player_rank(username) if username else None
+        user_player = repo.get_by_username(username) if username else None
 
         modal_w, modal_h = 580, 480
         modal_x = (WIDTH - modal_w) // 2
@@ -206,8 +200,9 @@ class StartScreen:
             # Check if user is allowed to view leaderboard
             can_leaderboard = False
             if nickname.strip():
-                with next(get_db_session()) as db:
-                    can_leaderboard = can_view_leaderboard(db, nickname.strip())
+                repo = get_repository()
+                player = repo.get_by_username(nickname.strip())
+                can_leaderboard = player is not None and player.total_games >= 1
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:

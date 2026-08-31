@@ -9,3 +9,10 @@
 - **Testing & Quality**:
   - Run `pytest` to verify game logic, API contracts, and database repositories.
   - Enforce code formatting via `black` and type safety with Python standard type annotations.
+
+## Subagents & Delegation
+- **`code_task_runner`** (`.agents/agents/code_task_runner.md`):
+  - Model: `gemini-3.7-flash` (Low thinking).
+  - Scope: Executes tasks from `.speckit/tasks.md` and feature specs according to `.speckit/constitution.md`.
+  - Failure Policy: Does NOT retry actions on failure; immediately halts and returns execution back to the main agent upon the first failure.
+

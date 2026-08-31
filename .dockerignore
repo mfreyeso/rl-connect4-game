@@ -1,0 +1,40 @@
+# Python / environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# IDEs / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+.agents/
+.speckit/
+
+# Artifacts
+build/
+dist/
+*.egg-info/
+
+# MacOS
+.DS_Store

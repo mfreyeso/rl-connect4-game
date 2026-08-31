@@ -4,8 +4,8 @@ from connect4.constants import WIDTH, HEIGHT, WINDOW_TITLE
 from connect4.environment import Connect4Environment
 from connect4.train import load_q_table
 from connect4.ui import BoardUI, StartScreen, EndGameModal, LeaderboardModal
-from connect4.db.engine import init_db, get_db_session
-from connect4.db.repository import get_or_create_player, record_match_result
+from connect4.db.engine import init_db
+from connect4.db import get_repository
 
 if __name__ == "__main__":
     pygame.init()
@@ -28,9 +28,9 @@ if __name__ == "__main__":
     while True:
         if state == "start":
             nickname = start_screen.show(screen)
-            with next(get_db_session()) as db:
-                player = get_or_create_player(db, nickname)
-                player_id = player.id
+            repo = get_repository()
+            player = repo.get_or_create(nickname)
+            player_id = player.username
             human_score = 0
             machine_score = 0
             state = "play"
@@ -46,8 +46,8 @@ if __name__ == "__main__":
                 machine_score += 1
 
             if player_id:
-                with next(get_db_session()) as db:
-                    record_match_result(db, player_id, result)
+                repo = get_repository()
+                repo.record_match_result(player_id, result)
 
             state = "end"
 
